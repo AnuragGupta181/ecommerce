@@ -1,18 +1,24 @@
-import { FolderTree } from "lucide-react";
 import type { Metadata } from "next";
-import { Card } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Suspense } from "react";
+import { CategoryManager } from "@/components/catalog/category-manager";
 import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/server/api";
+import type { Category } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Categories" };
 
 export default function CategoriesPage() {
   return (
     <>
-      <PageHeader title="Categories" description="Two-level category tree" />
-      <Card>
-        <EmptyState icon={FolderTree} title="Categories is being built" description="This section is scaffolded; its data views land in the next step of docs/PLAN.md." />
-      </Card>
+      <PageHeader title="Categories" description="A two-level tree: top-level categories and their sub-categories" />
+      <Suspense fallback={<TableSkeleton />}>
+        <Categories />
+      </Suspense>
     </>
   );
+}
+
+async function Categories() {
+  return <CategoryManager categories={await api.get<Category[]>("/admin/categories")} />;
 }

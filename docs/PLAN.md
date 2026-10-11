@@ -1,7 +1,7 @@
 # Haat — Master Build Plan
 
 > Living document. Every task is ticked as soon as it is finished and verified.
-> Last updated: 2026-10-11. Backend complete. Admin and mobile foundations scaffolded; admin feature pages next.
+> Last updated: 2026-10-11. Backend complete. Admin dashboard built (not yet exercised against a running API). Mobile screens next.
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 
@@ -58,26 +58,27 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 ## Phase 4 — Admin dashboard (Next.js)
 
 - [x] Theme tokens (yellow/white), layout shell (sidebar + topbar)
-- [~] UI kit: Button, Field/Input/Select/Textarea, Card, Badge/OrderStatusBadge, PageHeader, EmptyState, Skeleton done; Table, Modal, Pagination, StatCard to do
+- [x] UI kit: Button, Field/Input/Select/Textarea, Card, Badge, Table, Modal, Pagination, StatCard, FilterBar, Switch, ImagePicker, ConfirmAction, EmptyState, Skeleton
 - [x] API client + auth (login, token refresh, route guard)
 - [x] Route scaffold for every admin section, with error and not-found boundaries
-- [ ] Dashboard overview (KPIs, revenue chart, recent orders, low stock)
-- [ ] Products list + create/edit (variants, images, specs) + archive/delete
-- [ ] Categories & brands CRUD
-- [ ] Inventory page (stock table, adjust dialog, movement history, low-stock filter)
-- [ ] Orders list (filters) + order detail (timeline, status update, assign rider, resend notifications)
-- [ ] Riders CRUD
-- [ ] Customers list/detail (block, adjust coins)
-- [ ] Coupons CRUD
-- [ ] Banners CRUD
-- [ ] Reviews moderation
-- [ ] Settings page + notification log
+- [x] Dashboard overview (KPIs, revenue chart, recent orders, low stock)
+- [x] Products list + create/edit (variants, images, specs) + archive/delete
+- [x] Categories & brands CRUD
+- [x] Inventory page (stock table, adjust dialog, movement history, low-stock filter)
+- [x] Orders list (filters) + order detail (timeline, status update, assign rider, resend notifications)
+- [x] Riders CRUD
+- [x] Customers list/detail (block, adjust coins)
+- [x] Coupons CRUD
+- [x] Banners CRUD
+- [x] Reviews moderation
+- [x] Settings page + notification log
 
 ## Phase 5 — Mobile app (Expo / React Native)
 
 - [x] Expo SDK 57 + expo-router + TypeScript scaffold (yarn, `src/` layout, route placeholders)
 - [x] Theme tokens and floating bottom pill navigation
 - [~] UI kit: Screen, Text, PlaceholderScreen done; Button, Input, ProductCard and others to do
+- [ ] First run on an Android emulator / Expo Go (verify fonts, splash, pill tab bar, API reachability via LAN IP)
 - [ ] Splash screen + onboarding
 - [x] API client (single-flight token refresh), React Query, auth store (SecureStore)
 - [~] Auth gate for protected actions: `useRequireAuth` routes guests to login; login sheet and resume-after-login to do
@@ -100,6 +101,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 - [ ] Admin type-check + lint + build
 - [ ] Mobile type-check + lint
 - [ ] Root `tests/` end-to-end smoke script
+- [ ] Add `.gitattributes` to normalise line endings (LF in repo; silences CRLF warnings on Windows)
 
 ## Phase 7 — Deployment
 

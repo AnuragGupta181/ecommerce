@@ -1,18 +1,24 @@
-import { Settings } from "lucide-react";
 import type { Metadata } from "next";
-import { Card } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Suspense } from "react";
+import { SettingsForm } from "@/components/settings/settings-form";
 import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/server/api";
+import type { Settings } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default function SettingsPage() {
   return (
     <>
-      <PageHeader title="Settings" description="Store, delivery, coin and payment settings" />
-      <Card>
-        <EmptyState icon={Settings} title="Settings is being built" description="This section is scaffolded; its data views land in the next step of docs/PLAN.md." />
-      </Card>
+      <PageHeader title="Settings" description="Store contact details, delivery fees, coin rules and payment options" />
+      <Suspense fallback={<TableSkeleton />}>
+        <SettingsContent />
+      </Suspense>
     </>
   );
+}
+
+async function SettingsContent() {
+  return <SettingsForm settings={await api.get<Settings>("/admin/settings")} />;
 }

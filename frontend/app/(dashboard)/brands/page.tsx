@@ -1,18 +1,24 @@
-import { Tag } from "lucide-react";
 import type { Metadata } from "next";
-import { Card } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Suspense } from "react";
+import { BrandManager } from "@/components/catalog/brand-manager";
 import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/server/api";
+import type { Brand } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Brands" };
 
 export default function BrandsPage() {
   return (
     <>
-      <PageHeader title="Brands" description="Brands shown on product pages" />
-      <Card>
-        <EmptyState icon={Tag} title="Brands is being built" description="This section is scaffolded; its data views land in the next step of docs/PLAN.md." />
-      </Card>
+      <PageHeader title="Brands" description="Brands shown on product pages and in filters" />
+      <Suspense fallback={<TableSkeleton />}>
+        <Brands />
+      </Suspense>
     </>
   );
+}
+
+async function Brands() {
+  return <BrandManager brands={await api.get<Brand[]>("/admin/brands")} />;
 }

@@ -1,18 +1,24 @@
-import { Image } from "lucide-react";
 import type { Metadata } from "next";
-import { Card } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Suspense } from "react";
+import { BannerManager } from "@/components/marketing/banner-manager";
 import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/server/api";
+import type { Banner } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Banners" };
 
 export default function BannersPage() {
   return (
     <>
-      <PageHeader title="Banners" description="Home carousel and offer strips" />
-      <Card>
-        <EmptyState icon={Image} title="Banners is being built" description="This section is scaffolded; its data views land in the next step of docs/PLAN.md." />
-      </Card>
+      <PageHeader title="Banners" description="Home carousel slides and offer strips in the app" />
+      <Suspense fallback={<TableSkeleton />}>
+        <Banners />
+      </Suspense>
     </>
   );
+}
+
+async function Banners() {
+  return <BannerManager banners={await api.get<Banner[]>("/admin/banners")} />;
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { SidebarNav } from "./sidebar-nav";
+import { Suspense } from "react";
+import { NavList, SidebarNav } from "./sidebar-nav";
 
 export function Sidebar() {
   return (
@@ -10,7 +11,9 @@ export function Sidebar() {
           Haat <span className="font-semibold text-ink-500">Admin</span>
         </span>
       </Link>
-      <SidebarNav />
+      <Suspense fallback={<NavList pathname={null} />}>
+        <SidebarNav />
+      </Suspense>
     </aside>
   );
 }
