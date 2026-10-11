@@ -1,0 +1,64 @@
+import { Router } from "express";
+import { addressesRouter } from "./modules/addresses/addresses.routes.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
+import { adminBannersRouter, bannersRouter } from "./modules/banners/banners.routes.js";
+import { adminBrandsRouter, brandsRouter } from "./modules/brands/brands.routes.js";
+import { cartRouter } from "./modules/cart/cart.routes.js";
+import { adminCategoriesRouter, categoriesRouter } from "./modules/categories/categories.routes.js";
+import { coinsRouter } from "./modules/coins/coins.routes.js";
+import { adminCouponsRouter, couponsRouter } from "./modules/coupons/coupons.routes.js";
+import { adminDashboardRouter } from "./modules/dashboard/dashboard.routes.js";
+import { homeRouter } from "./modules/home/home.routes.js";
+import { adminInventoryRouter } from "./modules/inventory/inventory.routes.js";
+import { adminNotificationLogRouter, notificationsRouter } from "./modules/notifications/notifications.routes.js";
+import { adminOrdersRouter, ordersRouter } from "./modules/orders/orders.routes.js";
+import { adminProductsRouter, productsRouter } from "./modules/products/products.routes.js";
+import { adminReviewsRouter, reviewsRouter } from "./modules/reviews/reviews.routes.js";
+import { adminRidersRouter } from "./modules/riders/riders.routes.js";
+import { adminSettingsRouter, settingsRouter } from "./modules/settings/settings.routes.js";
+import { adminUploadsRouter, uploadsRouter } from "./modules/uploads/uploads.routes.js";
+import { adminCustomersRouter, profileRouter } from "./modules/users/users.routes.js";
+import { wishlistRouter } from "./modules/wishlist/wishlist.routes.js";
+
+export const apiRouter = Router();
+
+apiRouter.get("/health", (_req, res) => {
+  res.json({ data: { status: "ok", time: new Date().toISOString() } });
+});
+
+// Public (guest-browsable) and customer routes
+apiRouter.use("/auth", authRouter);
+apiRouter.use("/home", homeRouter);
+apiRouter.use("/settings", settingsRouter);
+apiRouter.use("/categories", categoriesRouter);
+apiRouter.use("/brands", brandsRouter);
+apiRouter.use("/products", productsRouter);
+apiRouter.use("/banners", bannersRouter);
+apiRouter.use("/coupons", couponsRouter);
+apiRouter.use("/reviews", reviewsRouter);
+apiRouter.use("/profile", profileRouter);
+apiRouter.use("/addresses", addressesRouter);
+apiRouter.use("/wishlist", wishlistRouter);
+apiRouter.use("/cart", cartRouter);
+apiRouter.use("/orders", ordersRouter);
+apiRouter.use("/coins", coinsRouter);
+apiRouter.use("/notifications", notificationsRouter);
+apiRouter.use("/uploads", uploadsRouter);
+
+// Admin routes: every router below applies `adminOnly`
+const admin = Router();
+admin.use("/dashboard", adminDashboardRouter);
+admin.use("/products", adminProductsRouter);
+admin.use("/categories", adminCategoriesRouter);
+admin.use("/brands", adminBrandsRouter);
+admin.use("/inventory", adminInventoryRouter);
+admin.use("/orders", adminOrdersRouter);
+admin.use("/riders", adminRidersRouter);
+admin.use("/customers", adminCustomersRouter);
+admin.use("/coupons", adminCouponsRouter);
+admin.use("/banners", adminBannersRouter);
+admin.use("/reviews", adminReviewsRouter);
+admin.use("/settings", adminSettingsRouter);
+admin.use("/notification-logs", adminNotificationLogRouter);
+admin.use("/uploads", adminUploadsRouter);
+apiRouter.use("/admin", admin);

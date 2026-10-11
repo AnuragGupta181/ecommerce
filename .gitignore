@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+.next/
+out/
+.expo/
+web-build/
+android/
+ios/
+
+# env
+.env
+.env.*
+!.env.example
+
+# logs & coverage
+*.log
+coverage/
+
+# uploads (local storage driver)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# generated
+backend/src/generated/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.tsbuildinfo
+

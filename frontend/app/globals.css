@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Tokens mirror docs/DESIGN.md. The admin is light-only by design. */
+@theme {
+  --color-brand-50: #fffbeb;
+  --color-brand-100: #fff3c4;
+  --color-brand-200: #ffe68a;
+  --color-brand-400: #ffd43b;
+  --color-brand-500: #ffc727;
+  --color-brand-600: #e6a800;
+  --color-brand-700: #9a6b00;
+
+  --color-ink-900: #1c1a14;
+  --color-ink-700: #3f3b2f;
+  --color-ink-500: #7a7465;
+  --color-ink-300: #c8c2b2;
+
+  --color-line: #ece8dc;
+  --color-canvas: #faf8f3;
+  --color-surface: #ffffff;
+
+  --color-success: #16a34a;
+  --color-success-soft: #e8f7ee;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fdecec;
+  --color-info: #2563eb;
+  --color-info-soft: #eaf1fe;
+  --color-warning: #d97706;
+  --color-warning-soft: #fdf3e3;
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-control: 12px;
+  --radius-card: 14px;
+
+  --shadow-float: 0 8px 24px rgba(28, 26, 20, 0.12);
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink-900);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgba(28, 26, 20, 0.4);
+}

@@ -1,0 +1,27 @@
+# Local development services.
+# The app uses Neon in dev by default; this Postgres is for the integration test database
+# (or fully offline development). Mailpit captures every outgoing email: http://localhost:8025
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: haat
+      POSTGRES_PASSWORD: haat
+      POSTGRES_DB: haat_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U haat"]
+      interval: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+
+volumes:
+  pgdata:
