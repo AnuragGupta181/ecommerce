@@ -46,38 +46,58 @@ function refreshOnce(): Promise<boolean> {
   return refreshing;
 }
 
-async function send<T>(path: string, options: Options, retry: boolean): Promise<Envelope<T>> {
-  const url = new URL(`${API_URL}${path}`);
-  for (const [key, value] of Object.entries(options.query ?? {})) {
-    if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
-  }
+function buildUrl(path: string, query?: Query): string {
+  const params = Object.entries(query ?? {})
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+  return `${API_URL}${path}${params.length ? `?${params.join("&")}` : ""}`;
+}
+
+async function send<T>(path: string, options: Options, retry = true): Promise<Envelope<T>> {
   const token = useAuthStore.getState().accessToken;
-  const res = await fetch(url.toString(), {
-    method: options.method ?? "GET",
-    headers: {
-      ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path, options.query), {
+      method: options.method ?? "GET",
+      headers: {
+        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    });
+  } catch {
+    throw new ApiError(0, "NETWORK_ERROR", "Can't reach the store. Check your connection.");
+  }
   if (res.status === 204) return { data: undefined as T };
 
   const json = await res.json().catch(() => null);
   if (!res.ok) {
     const error = json?.error;
-    if (res.status === 401 && retry && error?.details?.reason === "TOKEN_EXPIRED" && (await refreshOnce())) {
-      return send<T>(path, options, false);
-    }
-    throw new ApiError(res.status, error?.code ?? "NETWORK_ERROR", error?.message ?? "Something went wrong", error?.details);
+    if (res.status === 401 && retry && token && (await refreshOnce())) return send<T>(path, options, false);
+    throw new ApiError(res.status, error?.code ?? "INTERNAL_ERROR", error?.message ?? "Something went wrong", error?.details);
   }
   return json as Envelope<T>;
 }
 
 export const api = {
-  get: async <T>(path: string, query?: Query) => (await send<T>(path, { query }, true)).data,
-  page: <T>(path: string, query?: Query) => send<T[]>(path, { query }, true),
-  post: async <T>(path: string, body?: unknown) => (await send<T>(path, { method: "POST", body }, true)).data,
-  patch: async <T>(path: string, body?: unknown) => (await send<T>(path, { method: "PATCH", body }, true)).data,
-  put: async <T>(path: string, body?: unknown) => (await send<T>(path, { method: "PUT", body }, true)).data,
-  delete: async <T>(path: string) => (await send<T>(path, { method: "DELETE" }, true)).data,
+  get: async <T>(path: string, query?: Query) => (await send<T>(path, { query })).data,
+  page: <T>(path: string, query?: Query) => send<T[]>(path, { query }),
+  post: async <T>(path: string, body?: unknown) => (await send<T>(path, { method: "POST", body })).data,
+  patch: async <T>(path: string, body?: unknown) => (await send<T>(path, { method: "PATCH", body })).data,
+  put: async <T>(path: string, body?: unknown) => (await send<T>(path, { method: "PUT", body })).data,
+  delete: async <T>(path: string) => (await send<T>(path, { method: "DELETE" })).data,
 };
+
+/** First field error from a VALIDATION_ERROR response, keyed by path. */
+export function fieldErrors(error: unknown): Record<string, string> {
+  if (!(error instanceof ApiError) || !Array.isArray(error.details)) return {};
+  const errors: Record<string, string> = {};
+  for (const issue of error.details as { path?: string; message?: string }[]) {
+    if (issue.path && issue.message) errors[issue.path] ??= issue.message;
+  }
+  return errors;
+}
+
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Something went wrong";
+}

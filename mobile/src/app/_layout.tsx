@@ -12,6 +12,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { LoginSheet } from "@/components/auth/login-sheet";
 import { useAuthStore } from "@/lib/auth-store";
 import { queryClient } from "@/lib/query-client";
 import { colors } from "@/lib/theme";
@@ -47,6 +48,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="login" options={{ presentation: "modal" }} />
           </Stack>
+          <LoginSheet />
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
