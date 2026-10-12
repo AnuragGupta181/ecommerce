@@ -1,18 +1,17 @@
-import { router, type Href } from "expo-router";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/text";
 import { colors, spacing } from "@/lib/theme";
 import type { ProductCard as Card } from "@/lib/types";
 import { ProductCard } from "./product-card";
 
-export function ProductRail({ title, products, seeAll }: { title: string; products: Card[]; seeAll?: Href }) {
+export function ProductRail({ title, products, onSeeAll }: { title: string; products: Card[]; onSeeAll?: () => void }) {
   if (products.length === 0) return null;
   return (
     <View style={styles.section}>
       <View style={styles.header}>
         <Text variant="h2">{title}</Text>
-        {seeAll ? (
-          <Pressable hitSlop={8} onPress={() => router.push(seeAll)}>
+        {onSeeAll ? (
+          <Pressable hitSlop={8} onPress={onSeeAll}>
             <Text variant="small" color={colors.brand700} style={styles.link}>
               See all
             </Text>

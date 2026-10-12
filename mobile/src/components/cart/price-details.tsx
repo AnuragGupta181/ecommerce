@@ -42,7 +42,7 @@ export function PriceDetails({ summary }: { summary: PriceSummary }) {
       ) : null}
       {summary.coinsToEarn > 0 ? (
         <Text variant="small" color={colors.brand700}>
-          You'll earn {summary.coinsToEarn} coins when this order is delivered
+          You’ll earn {summary.coinsToEarn} coins when this order is delivered
         </Text>
       ) : null}
     </Card>

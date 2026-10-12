@@ -58,7 +58,8 @@ export function ProductCard({ product, width }: { product: Card; width?: number 
 
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, overflow: "hidden" },
-  flex: { flex: 1 },
+  // Caps a lone last item in a two-column grid at half width.
+  flex: { flex: 1, maxWidth: "50%" },
   pressed: { transform: [{ scale: 0.98 }] },
   imageBox: { aspectRatio: 1, backgroundColor: colors.canvas },
   image: { flex: 1, margin: spacing.sm },

@@ -1,7 +1,8 @@
 # Haat — Master Build Plan
 
 > Living document. Every task is ticked as soon as it is finished and verified.
-> Last updated: 2026-10-11. Backend complete. Admin dashboard built (not yet exercised against a running API). Mobile screens next.
+> Last updated: 2026-10-12. Backend complete. Admin dashboard built. Mobile app screens built (type-check, lint and bundle pass).
+> **Next:** run both clients against the live API and fix what breaks (Phase 5/6 open items), then deployment (Phase 7).
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 
@@ -75,33 +76,36 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 
 ## Phase 5 — Mobile app (Expo / React Native)
 
-- [x] Expo SDK 57 + expo-router + TypeScript scaffold (yarn, `src/` layout, route placeholders)
-- [x] Theme tokens and floating bottom pill navigation
-- [~] UI kit: Screen, Text, PlaceholderScreen done; Button, Input, ProductCard and others to do
-- [ ] First run on an Android emulator / Expo Go (verify fonts, splash, pill tab bar, API reachability via LAN IP)
-- [ ] Splash screen + onboarding
-- [x] API client (single-flight token refresh), React Query, auth store (SecureStore)
-- [~] Auth gate for protected actions: `useRequireAuth` routes guests to login; login sheet and resume-after-login to do
-- [ ] Login / signup / forgot password
-- [ ] Home: search bar, banners carousel, categories strip, deals, recommended
-- [ ] Categories screen, product listing with filters & sort
-- [ ] Search with suggestions & recent searches
-- [ ] Product detail: gallery, variants, price breakup, offers, reviews, similar products
-- [ ] Wishlist
-- [ ] Cart with price details, coupon apply, coins toggle
-- [ ] Checkout: address select/add, payment method, place order, success screen
-- [ ] Orders list + order detail (status timeline, rider name & phone, cancel, return)
-- [ ] Account: profile, addresses, coins history, coupons, notifications, help, logout
-- [ ] Write review flow
+- [x] Expo SDK 57 + expo-router + TypeScript scaffold (yarn, `src/` layout)
+- [x] Theme tokens and floating bottom pill navigation (cart count badge)
+- [x] UI kit: Screen, Text, Button, Input, Card, Chip, Price, RatingChip, QuantityStepper, Sheet, OptionRow, MenuRow, SearchBar, StackHeader, Loading/Error/Empty states
+- [x] API client (single-flight token refresh), React Query hooks, auth store (SecureStore)
+- [x] Auth gate: `useRequireAuth().guard` opens the login sheet; the action resumes after login/signup
+- [x] Splash screen + first-launch onboarding (device flag)
+- [x] Login / signup / forgot password (email OTP reset)
+- [x] Home: search bar, category strip, banner carousel, product rails with "See all", offer strips, unread-notification dot
+- [x] Categories (two-pane), product listing with sort + filters (price, brand, rating, discount, in stock), infinite scroll
+- [x] Search with suggestions, recent searches and trending terms
+- [x] Product detail: gallery, variants, stock hints, offers, highlights, specs, rating breakdown, all-reviews sheet, similar products, add to cart / buy now
+- [x] Wishlist
+- [x] Cart: line items (qty, remove, save for later), coupon sheet, coins toggle, server price details
+- [x] Checkout: address select/add, payment method (from store settings), note, place order, success screen
+- [x] Orders list (status filters) + detail (timeline, rider call/WhatsApp, cancel, return, price breakup)
+- [x] Account: profile + password, addresses, coins history, offers, notifications, help, logout
+- [x] Write review flow (from delivered order items)
+- [ ] First run on an Android emulator / Expo Go: verify fonts, splash, onboarding redirect, pill bar, API reachability via LAN IP (`EXPO_PUBLIC_API_URL`)
+- [ ] Manual pass of every flow against the seeded API (expect small layout/data-shape fixes)
 
 ## Phase 6 — Quality
 
 - [x] Backend unit tests (pricing engine, order status machine)
 - [x] Backend integration tests (auth, catalog/inventory, cart → order → rider → delivery, cancel)
-- [ ] Admin type-check + lint + build
-- [ ] Mobile type-check + lint
+- [x] Admin type-check + lint + build
+- [ ] Admin manual pass against a running API (login, CRUD, order status + rider assignment)
+- [x] Mobile type-check + lint + Android bundle export (`npx expo export --platform android`)
+- [ ] Mobile typed routes: run `yarn start` once so `.expo/types` is generated, then re-run `yarn typecheck`
 - [ ] Root `tests/` end-to-end smoke script
-- [ ] Add `.gitattributes` to normalise line endings (LF in repo; silences CRLF warnings on Windows)
+- [x] Add `.gitattributes` to normalise line endings (LF in repo; silences CRLF warnings on Windows)
 
 ## Phase 7 — Deployment
 

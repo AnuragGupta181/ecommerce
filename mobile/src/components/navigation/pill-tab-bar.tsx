@@ -68,3 +68,6 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: 10, lineHeight: 12 },
 });
+
+/** Bottom padding tab screens add so content scrolls clear of the floating bar. */
+export const TAB_BAR_CLEARANCE = 112;
