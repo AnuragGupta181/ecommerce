@@ -20,6 +20,7 @@ Guidance for AI coding agents (and humans) working in this repository.
 | backend | `pnpm test`, `pnpm typecheck`, `pnpm lint` | quality gates |
 | frontend | `pnpm dev`, `pnpm build`, `pnpm typecheck`, `pnpm lint` | admin |
 | mobile | `yarn start`, `yarn typecheck`, `yarn lint` | Expo app (add native deps with `npx expo install`) |
+| root | `node --env-file=backend/.env tests/smoke/run.mjs` | end-to-end smoke against a running API (dev DB only) |
 
 Use **pnpm** in `backend/` and `frontend/` (store kept in the repo-local `.pnpm-store/`), and **Yarn** in `mobile/`. Each app has its own `package.json` and lockfile.
 

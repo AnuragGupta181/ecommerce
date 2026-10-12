@@ -1,8 +1,8 @@
 # Haat — Master Build Plan
 
 > Living document. Every task is ticked as soon as it is finished and verified.
-> Last updated: 2026-10-12. Backend complete. Admin dashboard built. Mobile app screens built (type-check, lint and bundle pass).
-> **Next:** run both clients against the live API and fix what breaks (Phase 5/6 open items), then deployment (Phase 7).
+> Last updated: 2026-10-12. Backend, admin dashboard and mobile screens built. Full order flow (customer + admin) verified end to end via `tests/smoke/run.mjs`.
+> **Next:** click through the admin UI and run the mobile app on a device against the API, fixing what breaks. Deployment (Phase 7) is parked.
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 
@@ -55,6 +55,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 - [x] Dashboard stats API (revenue, orders by status, top products, low stock, chart series)
 - [x] Customers admin: list, detail, block/unblock
 - [x] Refresh-token rotation tolerates parallel refreshes (10 s grace via `rotatedAt`), so prefetches cannot log a user out
+- [x] DB pool hardening: stalled Neon connects hung requests for minutes; now connects retry (`lib/db-pool.ts`) and connects/queries have deadlines
 
 ## Phase 4 — Admin dashboard (Next.js)
 
@@ -101,13 +102,14 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 - [x] Backend unit tests (pricing engine, order status machine)
 - [x] Backend integration tests (auth, catalog/inventory, cart → order → rider → delivery, cancel)
 - [x] Admin type-check + lint + build
-- [ ] Admin manual pass against a running API (login, CRUD, order status + rider assignment)
+- [x] Order lifecycle verified end to end through the API both clients use (smoke script)
+- [ ] Admin UI click-through against a running API (login, CRUD, order status + rider assignment)
 - [x] Mobile type-check + lint + Android bundle export (`npx expo export --platform android`)
 - [ ] Mobile typed routes: run `yarn start` once so `.expo/types` is generated, then re-run `yarn typecheck`
-- [ ] Root `tests/` end-to-end smoke script
+- [x] Root end-to-end smoke script `tests/smoke/run.mjs` (guest → customer → admin → delivery → review/return → cancel; 42 checks, passing)
 - [x] Add `.gitattributes` to normalise line endings (LF in repo; silences CRLF warnings on Windows)
 
-## Phase 7 — Deployment
+## Phase 7 — Deployment (parked)
 
 - [ ] Backend Dockerfile + production compose
 - [ ] Admin Dockerfile / Vercel notes

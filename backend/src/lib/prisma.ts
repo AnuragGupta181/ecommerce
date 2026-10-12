@@ -1,10 +1,22 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "../config/env.js";
+import { RetryingPool } from "./db-pool.js";
 import { PrismaClient, type Prisma } from "../generated/prisma/client.js";
 
 // Honour `?schema=` in the URL (used to isolate the integration-test schema).
 const schema = new URL(env.DATABASE_URL).searchParams.get("schema") ?? undefined;
-const adapter = new PrismaPg({ connectionString: env.DATABASE_URL }, { schema });
+// pg waits forever by default, which hung requests for minutes when a Neon connect stalled.
+// Keep connections warm so new connects are rare, give connects and queries a deadline, and
+// retry stalled connects (see RetryingPool).
+export const pool = new RetryingPool({
+  connectionString: env.DATABASE_URL,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 30_000,
+  idleTimeoutMillis: 240_000,
+  connectionTimeoutMillis: 6_000,
+  query_timeout: 25_000,
+});
+const adapter = new PrismaPg(pool, { schema });
 
 export const prisma = new PrismaClient({
   adapter,
