@@ -56,6 +56,12 @@ cd ../mobile
 cp .env.example .env        # EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:4000/api/v1
 yarn install
 yarn start                  # press a for Android
+# or 
+
+adb reverse tcp:8081 tcp:8081  #if using scrcpy
+adb reverse tcp:4000 tcp:4000
+
+npx expo start --localhost -c   #then press a
 ```
 
 Emails sent in development appear in Mailpit at http://localhost:8025.
