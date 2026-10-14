@@ -82,6 +82,12 @@ The shopping experience follows Flipkart: browse, search, filter, wishlist, cart
   - Earned on delivery: `floor(payable / 100) * earnRate`. The default is 2 coins per ₹100.
   - Redeemed at checkout: 1 coin = ₹1, capped at `maxRedeemPercent` of the post-coupon amount. The default cap is 20%.
   - Every coin change is a ledger entry.
+- **Referral system:**
+  - Unique uppercase alphanumeric code (e.g. `HAAT4X8K`) assigned to each customer upon account creation or migration.
+  - Attribution during registration or before first order. Self-referrals (same user ID, email, or phone) and cyclic referrals (A refers B and B refers A) rejected with `400 BAD_REQUEST`. Max 1 referrer per referee, immutable once applied.
+  - Trigger: Strictly on referee's first `DELIVERED` order. Referrer receives ₹50 worth of coins (`BONUS`), referee receives ₹25 worth of coins (`BONUS`).
+  - Reversal: If the triggering order is marked `CANCELLED` or `RETURNED`, compensating ledger entries (`REVERSE`) reverse pending/awarded coins without driving balances negative.
+  - Admin settings: Toggle active/inactive, editable referrer bonus, referee bonus, and total referral coins.
 - **Delivery fee:** a flat fee, free when the post-discount amount is at or above the threshold. Defaults are ₹40, free from ₹499.
 - **Order of operations:** subtotal(price) → coupon → coins → delivery fee → payable.
 - All money is stored as **integer paise**.

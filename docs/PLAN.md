@@ -37,6 +37,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 - [x] Pricing engine (pure, unit tested): MRP, discount, coupon, coins, delivery fee, savings
 - [x] Coupons: validate/apply, list available for user, admin CRUD
 - [x] Coins: ledger, balance, earn on delivery, redeem at checkout, admin adjust
+- [x] Referral system: unique uppercase code (`HAAT4X8K`), attribution validation (self/cyclic guards), delivery rewards, cancel/return reversal
 - [x] Checkout → order placement in a DB transaction (stock decrement, coupon usage, coins debit)
 - [x] Orders: list/detail for customer, cancel (restock + refund coins), return request
 - [x] Inventory: stock movements log, admin adjust, low-stock list
@@ -74,6 +75,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 - [x] Banners CRUD
 - [x] Reviews moderation
 - [x] Settings page + notification log
+- [x] Referral program admin settings (active toggle, referrer bonus, referee bonus, total calculation) + customer referral relationships
 
 ## Phase 5 — Mobile app (Expo / React Native)
 
@@ -84,6 +86,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 - [x] Auth gate: `useRequireAuth().guard` opens the login sheet; the action resumes after login/signup
 - [x] Splash screen + first-launch onboarding (device flag)
 - [x] Login / signup / forgot password (email OTP reset)
+- [x] Referral code signup input ("Enter referral code, then open your box.")
 - [x] Home: search bar, category strip, banner carousel, product rails with "See all", offer strips, unread-notification dot
 - [x] Categories (two-pane), product listing with sort + filters (price, brand, rating, discount, in stock), infinite scroll
 - [x] Search with suggestions, recent searches and trending terms
@@ -93,13 +96,14 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 - [x] Checkout: address select/add, payment method (from store settings), note, place order, success screen
 - [x] Orders list (status filters) + detail (timeline, rider call/WhatsApp, cancel, return, price breakup)
 - [x] Account: profile + password, addresses, coins history, offers, notifications, help, logout
+- [x] Account Profile "Refer & earn" card (referral code, native share sheet, live referral stats)
 - [x] Write review flow (from delivered order items)
 - [ ] First run on an Android emulator / Expo Go: verify fonts, splash, onboarding redirect, pill bar, API reachability via LAN IP (`EXPO_PUBLIC_API_URL`)
 - [ ] Manual pass of every flow against the seeded API (expect small layout/data-shape fixes)
 
 ## Phase 6 — Quality
 
-- [x] Backend unit tests (pricing engine, order status machine)
+- [x] Backend unit tests (pricing engine, order status machine, referral code & attribution integrity)
 - [x] Backend integration tests (auth, catalog/inventory, cart → order → rider → delivery, cancel)
 - [x] Admin type-check + lint + build
 - [x] Order lifecycle verified end to end through the API both clients use (smoke script)

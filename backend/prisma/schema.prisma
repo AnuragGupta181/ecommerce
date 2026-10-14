@@ -29,6 +29,7 @@ model User {
   isBlocked    Boolean  @default(false)
   avatarUrl    String?
   coinBalance  Int      @default(0)
+  referralCode String?  @unique
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -42,6 +43,8 @@ model User {
   couponRedemptions CouponRedemption[]
   reviews           Review[]
   notifications     Notification[]
+  referralsGiven    Referral[]         @relation("ReferrerReferrals")
+  referralReceived  Referral?          @relation("RefereeReferral")
 
   @@index([role, createdAt])
 }
@@ -445,6 +448,7 @@ model Order {
   couponRedemption CouponRedemption?
   coinTransactions CoinTransaction[]
   notificationLogs NotificationLog[]
+  referral         Referral?
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
@@ -597,6 +601,34 @@ model NotificationLog {
   @@index([createdAt])
 }
 
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+  REVERSED
+}
+
+model Referral {
+  id            String         @id @default(cuid())
+  referrerId    String
+  refereeId     String         @unique
+  status        ReferralStatus @default(PENDING)
+  orderId       String?        @unique
+  referrerCoins Int            @default(50)
+  refereeCoins  Int            @default(25)
+  completedAt   DateTime?
+  reversedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  referrer User   @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee  User   @relation("RefereeReferral", fields: [refereeId], references: [id], onDelete: Cascade)
+  order    Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([referrerId, status])
+  @@index([refereeId])
+  @@index([orderId])
+}
+
 model Settings {
   id                    Int      @id @default(1)
   storeName             String   @default("Haat")
@@ -611,5 +643,8 @@ model Settings {
   returnWindowDays      Int      @default(7)
   codEnabled            Boolean  @default(true)
   upiOnDeliveryEnabled  Boolean  @default(true)
+  referralEnabled       Boolean  @default(true)
+  referralReferrerCoins Int      @default(50)
+  referralRefereeCoins  Int      @default(25)
   updatedAt             DateTime @updatedAt
 }
