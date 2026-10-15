@@ -119,3 +119,23 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 - [ ] Admin Dockerfile / Vercel notes
 - [ ] EAS build profiles for mobile
 - [ ] GitHub Actions CI (lint, type-check, test)
+
+## Phase 8 — Voice search (on-device STT)
+
+- [x] `expo-speech-recognition` installed; config plugin in `app.json` with mic + speech permission
+      strings and the Android `RecognitionService` package queries
+- [x] Pure transcript cleanup `mobile/src/lib/voice-query.ts` (filler, punctuation, 100-char cap,
+      `en-IN`/`hi-IN` locale list)
+- [x] `useVoiceSearch()` state machine: check → prompt only when the OS will show it → never
+      re-prompt when blocked → on-device model availability → live partials → cleaned transcript
+- [x] `VoiceSearchModal` on the shared `Sheet`: listening / requesting / denied / unavailable /
+      error, language chips, Open Settings and "Type instead" fallbacks
+- [x] Mic in the search screen input and in the home `SearchBar` (routes to `/search?voice=1`)
+- [x] Chosen language persisted via `deviceStore.voiceLocale`
+- [x] Backend `normalizeSearchTerm()` keeps spoken sentences out of `SearchTerm` / trending
+- [x] Mobile test runner added (`jest-expo`, `mobile/tests/`) — 17 voice tests
+- [x] Backend unit tests for search-term normalisation (`tests/unit/voice-search.test.ts`)
+- [x] Docs: PRD §5.6, ARCHITECTURE §5, TESTING pyramid + QA checklist, README dev-build note
+- [ ] Run on a physical Android device via `npx expo run:android` and walk the manual QA matrix
+      (grant / deny / deny-permanently → Settings / Hindi / aeroplane mode / no on-device model)
+- [ ] Confirm `/api/v1/products/trending-searches` stays clean after voice searches
