@@ -301,6 +301,111 @@ async function seedRiders() {
   console.log("✓ riders");
 }
 
+/**
+ * Seeds 3 branches with Bengaluru lat/lng and creates BranchVariantStock
+ * rows for every active variant so each branch has independently tracked stock.
+ * Idempotent: skips existing branches and existing BranchVariantStock rows.
+ */
+async function seedBranches() {
+  const branchDefs = [
+    {
+      name: "Haat Main Branch",
+      slug: "main",
+      address: "12, MG Road, Brigade Road Junction",
+      city: "Bengaluru",
+      state: "Karnataka",
+      pincode: "560001",
+      lat: 12.9716,
+      lng: 77.5946,
+      deliveryRadiusKm: 8,
+      phone: "+918011110001",
+      email: "main@haat.local",
+      isOnline: true,
+      sortOrder: 0,
+    },
+    {
+      name: "Haat North Branch",
+      slug: "north",
+      address: "45, Hebbal Flyover Road, Hebbal",
+      city: "Bengaluru",
+      state: "Karnataka",
+      pincode: "560024",
+      lat: 13.035,
+      lng: 77.5972,
+      deliveryRadiusKm: 6,
+      phone: "+918011110002",
+      email: "north@haat.local",
+      isOnline: true,
+      sortOrder: 1,
+    },
+    {
+      name: "Haat South Branch",
+      slug: "south",
+      address: "78, Banashankari 2nd Stage",
+      city: "Bengaluru",
+      state: "Karnataka",
+      pincode: "560070",
+      lat: 12.9352,
+      lng: 77.5552,
+      deliveryRadiusKm: 6,
+      phone: "+918011110003",
+      email: "south@haat.local",
+      isOnline: true,
+      sortOrder: 2,
+    },
+  ];
+
+  const branches: { id: string }[] = [];
+  for (const def of branchDefs) {
+    const branch = await prisma.branch.upsert({
+      where: { slug: def.slug },
+      update: {},
+      create: def,
+    });
+    branches.push(branch);
+  }
+  console.log(`✓ branches (${branches.length})`);
+
+  // Create BranchVariantStock for every active variant in every branch.
+  // Use random stock between 20-200 for seeding realism.
+  const variants = await prisma.productVariant.findMany({
+    where: { isActive: true },
+    select: { id: true },
+  });
+
+  let stockRows = 0;
+  for (const branch of branches) {
+    for (const variant of variants) {
+      const stock = Math.floor(Math.random() * 181) + 20; // 20–200
+      await prisma.branchVariantStock.upsert({
+        where: { branchId_variantId: { branchId: branch.id, variantId: variant.id } },
+        update: {},
+        create: {
+          branchId: branch.id,
+          variantId: variant.id,
+          stock,
+          lowStockThreshold: 5,
+          isAvailable: true,
+        },
+      });
+      stockRows++;
+    }
+  }
+  console.log(`✓ branch variant stock (${stockRows} rows across ${branches.length} branches)`);
+
+  // Assign all seeded riders to the Main branch.
+  const riders = await prisma.rider.findMany({ select: { id: true } });
+  const mainBranch = branches[0]!;
+  for (const rider of riders) {
+    await prisma.branchRider.upsert({
+      where: { branchId_riderId: { branchId: mainBranch.id, riderId: rider.id } },
+      update: {},
+      create: { branchId: mainBranch.id, riderId: rider.id },
+    });
+  }
+  console.log(`✓ branch riders (${riders.length} riders → Main branch)`);
+}
+
 async function main() {
   const catalog = JSON.parse(await readFile(new URL("./seed-data/catalog.json", import.meta.url), "utf8")) as {
     categories: SeedCategory[];
@@ -316,6 +421,7 @@ async function main() {
   await seedBanners(catalog.categories);
   await seedSearchTerms();
   await seedRiders();
+  await seedBranches();
 }
 
 main()
@@ -324,3 +430,4 @@ main()
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());
+
