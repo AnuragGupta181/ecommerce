@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { type Db } from "../../src/lib/prisma.js";
 import { generateCandidateReferralCode, normalizeReferralCode } from "../../src/lib/referral-code.js";
 import { validateReferralAttribution } from "../../src/modules/referrals/referrals.service.js";
 
@@ -75,7 +76,7 @@ describe("referral attribution business rules", () => {
       referral: {
         findUnique: async () => overrides.referrerReferral ?? null,
       },
-    } as any;
+    } as unknown as Db;
   }
 
   it("rejects attribution when referral program is inactive", async () => {
@@ -174,7 +175,7 @@ describe("referral creation integrity", () => {
         findUnique: async () => ({ id: "existing-ref-1", refereeId: "bob" }),
         create: async () => ({ id: "new-ref-2" }),
       },
-    } as any;
+    } as unknown as Db;
 
     const { createReferralRecord } = await import("../../src/modules/referrals/referrals.service.js");
     await expect(
@@ -188,16 +189,16 @@ describe("referral creation integrity", () => {
   });
 
   it("creates a pending referral with configured coins", async () => {
-    let createdPayload: any = null;
+    let createdPayload: Record<string, unknown> | null = null;
     const mockDb = {
       referral: {
         findUnique: async () => null,
-        create: async ({ data }: any) => {
+        create: async ({ data }: { data: Record<string, unknown> }) => {
           createdPayload = data;
           return { id: "ref-new", ...data };
         },
       },
-    } as any;
+    } as unknown as Db;
 
     const { createReferralRecord } = await import("../../src/modules/referrals/referrals.service.js");
     const result = await createReferralRecord(mockDb, {

@@ -106,7 +106,7 @@ export async function applyReferralCodeForUser(userId: string, rawCode: string) 
 }
 
 export async function getReferralSummary(userId: string) {
-  let user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, referralCode: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, referralCode: true } });
   if (!user) throw AppError.notFound("User");
 
   let referralCode = user.referralCode;
