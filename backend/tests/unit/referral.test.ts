@@ -189,12 +189,12 @@ describe("referral creation integrity", () => {
   });
 
   it("creates a pending referral with configured coins", async () => {
-    let createdPayload: Record<string, unknown> | null = null;
+    const createdPayload: { status?: string; referrerCoins?: number; refereeCoins?: number } = {};
     const mockDb = {
       referral: {
         findUnique: async () => null,
-        create: async ({ data }: { data: Record<string, unknown> }) => {
-          createdPayload = data;
+        create: async ({ data }: { data: typeof createdPayload }) => {
+          Object.assign(createdPayload, data);
           return { id: "ref-new", ...data };
         },
       },
