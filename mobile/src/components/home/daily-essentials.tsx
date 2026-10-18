@@ -23,7 +23,7 @@ export function DailyEssentials({ plans }: { plans: Plan[] }) {
           return (
             <Pressable key={plan.id} accessibilityRole="button" accessibilityLabel={plan.name} onPress={() => router.push(`/plans/${plan.id}`)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
               <View style={styles.imageBox}>
-                <Image source={plan.product.imageUrl} style={styles.image} contentFit="contain" />
+                <Image transition={200} source={plan.product.imageUrl} style={styles.image} contentFit="contain" />
               </View>
               <Text variant="h3" numberOfLines={1}>
                 {plan.name}

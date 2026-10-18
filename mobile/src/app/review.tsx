@@ -27,7 +27,7 @@ export default function WriteReviewScreen() {
       <StackHeader title="Rate product" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.product}>
-          {imageUrl ? <Image source={imageUrl} style={styles.thumb} contentFit="contain" /> : null}
+          {imageUrl ? <Image transition={200} source={imageUrl} style={styles.thumb} contentFit="contain" /> : null}
           <Text variant="h3" numberOfLines={2} style={styles.flex}>
             {name}
           </Text>

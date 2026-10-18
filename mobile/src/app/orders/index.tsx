@@ -61,7 +61,7 @@ export default function OrdersScreen() {
               <View style={styles.body}>
                 <View style={styles.thumbs}>
                   {item.items.slice(0, 3).map((line, i) => (
-                    <Image key={i} source={line.imageUrl} style={styles.thumb} contentFit="contain" />
+                    <Image key={i} transition={200} source={line.imageUrl} style={styles.thumb} contentFit="contain" />
                   ))}
                 </View>
                 <View style={styles.flex}>

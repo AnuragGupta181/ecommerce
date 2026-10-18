@@ -2,7 +2,7 @@
 
 > Living document. Every task is ticked as soon as it is finished and verified.
 > Last updated: 2026-10-18. **Marketplace backend complete** (Phases 8–11): vendors, shops, per-shop stock and per-km delivery, single-shop cart, subscriptions, tickets, chat, PDFs, payouts, Excel reports. Test logins: [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md).
-> **Live on Vercel:** API https://haat-api.vercel.app, portal https://haat-portal.vercel.app, app (web) https://haat-app.vercel.app. **Next:** Render/AWS later; switch the live API to a fresh production database before real use.
+> **Live on Vercel:** API https://haat-api.vercel.app, portal https://haat-portal.vercel.app, app (web) https://haat-app.vercel.app. **Next:** see TODO at the end (Redis, production database, Render/AWS).
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 
@@ -278,3 +278,20 @@ Build a whole phase, then test it; run the smoke test before every push.
 - [x] Smoke test: subscriptions, tickets and payouts end to end (payouts preview only, no real settlement)
 - [x] API.md, DATABASE.md, AGENTS.md, MARKETPLACE.md updated
 - [x] FLOWS.md, ARCHITECTURE.md (marketplace sections)
+
+## Phase 15 — Performance and polish
+
+- [x] API and portal in `sin1` next to the Neon database; web app calls the API same-origin (no preflights); CDN cache for `/categories` and `/settings`
+- [x] Settings read cached per instance (no write per read); home feed in two query rounds
+- [x] Portal: `loading.tsx` page skeletons, show/hide password, grocery backdrop on login/signup, page-themed backdrops in admin and vendor areas
+- [x] App: page-shaped skeleton loaders, show/hide password, sign-in header photos, page-themed backdrops, image fade-in, pull-to-refresh on every list, categories rail fixed on web
+
+## TODO
+
+- [ ] **Redis (Upstash)** — keys are in `backend/.env` (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) but nothing uses them yet. Planned:
+  - rate limiting shared across serverless instances (today `express-rate-limit` counts per instance, so limits are loose on Vercel)
+  - shared cache for settings, categories and the guest home feed (keyed by a rounded location), with invalidation on admin edits
+  - check the Upstash region first: like the database, it should be in Singapore (`ap-southeast-1`), or every cache hit pays a long round trip
+  - add the two keys to the API's Vercel project when this ships; rotate the token first (it was shared in a chat)
+- [ ] Switch the live API to a fresh production database before real use (the live site uses the dev database and public test accounts)
+- [ ] Render/AWS deployment config

@@ -99,7 +99,7 @@ export default function PlanScreen() {
       <StackHeader title={p.name} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
-          <Image source={p.product.imageUrl} style={styles.image} contentFit="contain" />
+          <Image transition={200} source={p.product.imageUrl} style={styles.image} contentFit="contain" />
           <View style={styles.flex}>
             <Text variant="h2">{p.name}</Text>
             <Text color={colors.ink700}>

@@ -24,7 +24,7 @@ export function CategoryBubble({ category, size = 64 }: { category: CategoryNode
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={category.name} onPress={() => openListing({ category: category.slug }, category.name)} style={[styles.item, { width: size + 12 }]}>
       <View style={[styles.circle, { width: size, height: size, borderRadius: size / 2 }]}>
-        {category.imageUrl ? <Image source={category.imageUrl} style={styles.image} contentFit="cover" /> : <LayoutGrid size={22} color={colors.ink700} />}
+        {category.imageUrl ? <Image transition={200} source={category.imageUrl} style={styles.image} contentFit="cover" /> : <LayoutGrid size={22} color={colors.ink700} />}
       </View>
       <Text variant="small" numberOfLines={2} style={styles.label}>
         {category.name}

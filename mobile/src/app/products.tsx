@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowUpDown, PackageSearch, Search, SlidersHorizontal } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, Pressable, StyleSheet, View } from "react-native";
 import { FilterSheet, SORTS, SortSheet } from "@/components/product/listing-sheets";
 import { ProductCard } from "@/components/product/product-card";
 import { Screen } from "@/components/ui/screen";
@@ -54,6 +54,7 @@ export default function ProductListingScreen() {
         <ErrorState error={products.error} onRetry={() => products.refetch()} />
       ) : (
         <FlatList
+          refreshControl={<RefreshControl refreshing={products.isRefetching && !products.isFetchingNextPage} onRefresh={() => products.refetch()} tintColor={colors.brand600} />}
           data={items}
           numColumns={2}
           keyExtractor={(item) => item.id}

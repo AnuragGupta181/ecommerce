@@ -1,5 +1,5 @@
 import { Coins } from "lucide-react-native";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { Screen } from "@/components/ui/screen";
 import { StackHeader } from "@/components/ui/stack-header";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/state-view";
@@ -20,6 +20,7 @@ export default function CoinsScreen() {
         <ErrorState error={coins.error} onRetry={() => coins.refetch()} />
       ) : (
         <FlatList
+          refreshControl={<RefreshControl refreshing={coins.isRefetching} onRefresh={() => coins.refetch()} tintColor={colors.brand600} />}
           data={coins.data.history}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}

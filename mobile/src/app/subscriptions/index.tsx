@@ -30,7 +30,7 @@ export default function SubscriptionsScreen() {
           refreshControl={<RefreshControl refreshing={subscriptions.isRefetching} onRefresh={() => subscriptions.refetch()} tintColor={colors.brand600} />}
           renderItem={({ item }) => (
             <Pressable accessibilityRole="button" onPress={() => router.push(`/subscriptions/${item.id}`)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-              <Image source={item.product.imageUrl} style={styles.image} contentFit="contain" />
+              <Image transition={200} source={item.product.imageUrl} style={styles.image} contentFit="contain" />
               <View style={styles.flex}>
                 <Text variant="h3">{item.plan.name}</Text>
                 <Text variant="small" color={colors.ink500}>

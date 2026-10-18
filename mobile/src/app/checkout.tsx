@@ -95,7 +95,7 @@ export default function CheckoutScreen() {
             <Card title={`Items (${quote.data.summary.itemCount})`}>
               {quote.data.items.map((line) => (
                 <View key={line.id} style={styles.line}>
-                  <Image source={line.product.imageUrl} style={styles.thumb} contentFit="contain" />
+                  <Image transition={200} source={line.product.imageUrl} style={styles.thumb} contentFit="contain" />
                   <View style={styles.flex}>
                     <Text numberOfLines={1}>{line.product.name}</Text>
                     <Text variant="small" color={colors.ink500}>

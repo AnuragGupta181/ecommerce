@@ -93,7 +93,7 @@ export default function OrderDetailScreen() {
           {o.items.map((item) => (
             <View key={item.id} style={styles.item}>
               <Pressable style={styles.itemRow} onPress={() => router.push(`/product/${item.productSlug}`)}>
-                <Image source={item.imageUrl} style={styles.thumb} contentFit="contain" />
+                <Image transition={200} source={item.imageUrl} style={styles.thumb} contentFit="contain" />
                 <View style={styles.flex}>
                   <Text numberOfLines={2}>{item.productName}</Text>
                   <Text variant="small" color={colors.ink500}>

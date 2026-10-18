@@ -18,7 +18,7 @@ export function CartLineItem({ line }: { line: CartLine }) {
   return (
     <View style={[styles.card, busy && styles.busy]}>
       <Pressable style={styles.top} onPress={() => router.push(`/product/${line.product.slug}`)}>
-        <Image source={line.product.imageUrl} style={styles.image} contentFit="contain" />
+        <Image transition={200} source={line.product.imageUrl} style={styles.image} contentFit="contain" />
         <View style={styles.info}>
           {line.product.brand ? (
             <Text variant="small" color={colors.ink500}>

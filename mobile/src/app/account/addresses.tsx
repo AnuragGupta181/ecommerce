@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { MapPin, Plus } from "lucide-react-native";
-import { Alert, FlatList, StyleSheet, View } from "react-native";
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { AddressLines } from "@/components/account/address-card";
 import { Button } from "@/components/ui/button";
 import { Screen } from "@/components/ui/screen";
@@ -24,6 +24,7 @@ export default function AddressesScreen() {
         <ErrorState error={addresses.error} onRetry={() => addresses.refetch()} />
       ) : (
         <FlatList
+          refreshControl={<RefreshControl refreshing={addresses.isRefetching} onRefresh={() => addresses.refetch()} tintColor={colors.brand600} />}
           data={addresses.data}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}

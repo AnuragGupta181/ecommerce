@@ -74,7 +74,7 @@ export default function SearchScreen() {
           <>
             {data.products.map((product) => (
               <Pressable key={product.id} style={styles.row} onPress={() => router.push(`/product/${product.slug}`)}>
-                <Image source={product.imageUrl} style={styles.thumb} contentFit="contain" />
+                <Image transition={200} source={product.imageUrl} style={styles.thumb} contentFit="contain" />
                 <Text numberOfLines={1} style={styles.flex}>
                   {product.name}
                 </Text>

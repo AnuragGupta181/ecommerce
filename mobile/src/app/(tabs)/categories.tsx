@@ -37,7 +37,7 @@ export default function CategoriesScreen() {
               return (
                 <Pressable key={category.id} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => setSelectedId(category.id)} style={[styles.railItem, active && styles.railActive]}>
                   <View style={[styles.railIcon, active && styles.railIconActive]}>
-                    {category.imageUrl ? <Image source={category.imageUrl} style={styles.railImage} contentFit="cover" /> : <LayoutGrid size={18} color={colors.ink700} />}
+                    {category.imageUrl ? <Image transition={200} source={category.imageUrl} style={styles.railImage} contentFit="cover" /> : <LayoutGrid size={18} color={colors.ink700} />}
                   </View>
                   <Text variant="small" numberOfLines={2} color={active ? colors.ink900 : colors.ink700} style={[styles.railLabel, active && styles.bold]}>
                     {category.name}

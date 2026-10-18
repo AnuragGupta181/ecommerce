@@ -119,9 +119,13 @@ There are deliberately no purple/blue gradients, glassmorphism, neon glows or em
 - Icons come from Lucide (`lucide-react` / `lucide-react-native`) at 1.75 stroke width.
 - Product images sit on a `canvas` background with `contain` fit, so they are never cropped.
 - Empty states use a simple line icon in a `brand-100` circle, a short title and one action.
+- **Backdrops:** faint grocery photos (transparent webp, bundled in `mobile/assets/backdrop` and `frontend/public/backdrop`) sit behind pages, themed to the page: orders show rice and potatoes, subscriptions milk and eggs, support lemon and kiwi, payouts and reports coffee and water. Opacity stays at 7–14% so text contrast is unaffected. They never take touches or screen-reader focus, and the portal hides them below `md`. Sign-in and signup pages use the same photos at full strength on `brand-100`.
+- **Loading:** first loads show a skeleton shaped like the page (app: `Loading layout="home|grid|detail|list|chat"`; portal: each area's `loading.tsx`), never a full-screen spinner. Spinners remain only inside buttons and for "load more".
 
 ## 8. Motion
 
 - Press feedback: scale to 0.97, 120 ms.
+- Remote images fade in over 150–200 ms (`transition` on `expo-image`).
+- Skeletons pulse between 55% and 100% opacity over 1.4 s.
 - Pill tab change: the active pill width animates over 200 ms ease-out.
 - Sheets slide up over 250 ms. There are no bouncy springs on content.

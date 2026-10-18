@@ -1,5 +1,5 @@
 import { Tag } from "lucide-react-native";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { Screen } from "@/components/ui/screen";
 import { StackHeader } from "@/components/ui/stack-header";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/state-view";
@@ -20,6 +20,7 @@ export default function OffersScreen() {
         <ErrorState error={coupons.error} onRetry={() => coupons.refetch()} />
       ) : (
         <FlatList
+          refreshControl={<RefreshControl refreshing={coupons.isRefetching} onRefresh={() => coupons.refetch()} tintColor={colors.brand600} />}
           data={coupons.data}
           keyExtractor={(item) => item.code}
           contentContainerStyle={styles.list}
