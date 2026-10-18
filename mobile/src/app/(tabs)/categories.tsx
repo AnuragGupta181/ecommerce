@@ -20,7 +20,7 @@ export default function CategoriesScreen() {
   const selected = roots.find((category) => category.id === selectedId) ?? roots[0];
 
   return (
-    <Screen>
+    <Screen backdrop="browse" tab>
       <View style={styles.header}>
         <Text variant="h1">Categories</Text>
         <SearchBar />

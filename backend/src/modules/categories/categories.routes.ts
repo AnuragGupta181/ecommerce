@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { idParam, ok } from "../../lib/http.js";
+import { idParam, ok, publicCache } from "../../lib/http.js";
 import { adminOnly } from "../../middleware/auth.js";
 import { categoryInputSchema, categoryUpdateSchema } from "./categories.schema.js";
 import * as service from "./categories.service.js";
@@ -10,11 +10,13 @@ const slugParam = z.object({ slug: z.string().min(1) });
 export const categoriesRouter = Router();
 
 categoriesRouter.get("/", async (_req: Request, res: Response) => {
+  publicCache(res);
   res.json(ok(await service.getCategoryTree()));
 });
 
 categoriesRouter.get("/:slug", async (req: Request, res: Response) => {
   const { slug } = slugParam.parse(req.params);
+  publicCache(res);
   res.json(ok(await service.getCategoryBySlug(slug)));
 });
 

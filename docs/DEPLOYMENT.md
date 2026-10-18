@@ -11,6 +11,9 @@
 The live API uses the seeded **development** database, so the logins in [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md) work there. Point `DATABASE_URL` at a fresh production database (and do not run the demo seed) before real customers use it.
 
 - **Redeploy:** `npx vercel deploy --prod` from each root. Environment variables live in each Vercel project (never in git): the API needs the keys in `backend/.env.example` with `NODE_ENV=production`, `PUBLIC_URL`, `PORTAL_URL` and `CORS_ORIGINS` (the portal and app origins); the portal needs `API_URL`; the app needs `EXPO_PUBLIC_API_URL` and `ENABLE_EXPERIMENTAL_COREPACK=1`.
+- **Region:** the API and the portal run in `sin1` (Singapore, `regions` in each `vercel.json`), next to the Neon database in `ap-southeast-1`. Every query is a network round trip, so a function in another region (Vercel's default is `iad1`, Washington) adds roughly 200 ms per query. Keep the functions in the database's region if either moves.
+- **Same-origin API for the web app:** `mobile/vercel.json` rewrites `/api/*` to the API, and the app's `EXPO_PUBLIC_API_URL` is `https://haat-app.vercel.app/api/v1`. Browser calls are then same-origin and need no CORS preflight. Other origins still get CORS, with preflights cached for 2 hours.
+- **Edge caching:** `/categories` and `/settings` are identical for everyone and send `s-maxage=300`, so the CDN answers them. Admin changes to categories or settings can take up to 5 minutes to show in the apps.
 - **Web build of the app:** sessions use `localStorage` on web (the keychain on phones, `src/lib/secure-storage.ts`); voice search is phone-only.
 - **Later on Render / AWS:** the same API runs as a long-lived server (`pnpm build && node dist/server.js`); set `ENABLE_SCHEDULER=true` or call `/api/v1/cron/daily` from a cron, and choose `STORAGE_DRIVER=s3` if wanted (docs/MARKETPLACE.md §14).
 

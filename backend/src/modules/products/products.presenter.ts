@@ -23,7 +23,7 @@ export const productCardSelect = {
   },
 } satisfies Prisma.ProductSelect;
 
-type CardRow = Prisma.ProductGetPayload<{ select: typeof productCardSelect }>;
+export type CardRow = Prisma.ProductGetPayload<{ select: typeof productCardSelect }>;
 
 /** The shop a tile advertises: the best offer for this shopper across all variants. */
 function tileShop(best: Offer | undefined) {
@@ -65,8 +65,16 @@ export type ProductCard = ReturnType<typeof toProductCard>;
 
 /** Turns catalog rows into tiles priced from the shops near `point` (or the cheapest shops). */
 export async function toProductCards(rows: CardRow[], wishlisted: Set<string>, point: Point | null, onlyVendorSlug?: string) {
-  const variantIds = rows.flatMap((row) => row.variants.map((variant) => variant.id));
-  const byVariant = await loadOffers(prisma, variantIds, point);
+  const byVariant = await loadOffers(prisma, variantIdsOf(rows), point);
+  return cardsFromOffers(rows, wishlisted, byVariant, onlyVendorSlug);
+}
+
+export function variantIdsOf(rows: CardRow[]): string[] {
+  return rows.flatMap((row) => row.variants.map((variant) => variant.id));
+}
+
+/** Same as toProductCards with offers already loaded, so several lists can share one offers query. */
+export function cardsFromOffers(rows: CardRow[], wishlisted: Set<string>, byVariant: Awaited<ReturnType<typeof loadOffers>>, onlyVendorSlug?: string) {
   return rows.map((row) => {
     const all = row.variants.flatMap((variant) => byVariant.get(variant.id) ?? []);
     const offers = rankOffers(onlyVendorSlug ? all.filter((offer) => offer.shop.vendorSlug === onlyVendorSlug) : all);

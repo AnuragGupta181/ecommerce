@@ -10,10 +10,10 @@ import { colors, radius, spacing } from "@/lib/theme";
 
 /** Everyday groceries peeking into the header, bundled so sign-in never waits on a CDN. */
 const HERO_ITEMS = [
-  { key: "milk", source: require("../../../assets/auth/milk.webp"), style: { right: 118, top: 10, transform: [{ rotate: "-8deg" }] } },
-  { key: "eggs", source: require("../../../assets/auth/eggs.webp"), style: { right: -6, top: -8 } },
-  { key: "strawberry", source: require("../../../assets/auth/strawberry.webp"), style: { right: 60, bottom: -24 } },
-  { key: "lemon", source: require("../../../assets/auth/lemon.webp"), style: { right: -24, bottom: -30, transform: [{ rotate: "12deg" }] } },
+  { key: "milk", source: require("../../../assets/backdrop/milk.webp"), style: { right: 118, top: 10, transform: [{ rotate: "-8deg" }] } },
+  { key: "eggs", source: require("../../../assets/backdrop/eggs.webp"), style: { right: -6, top: -8 } },
+  { key: "strawberry", source: require("../../../assets/backdrop/strawberry.webp"), style: { right: 60, bottom: -24 } },
+  { key: "lemon", source: require("../../../assets/backdrop/lemon.webp"), style: { right: -24, bottom: -30, transform: [{ rotate: "12deg" }] } },
 ];
 
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {

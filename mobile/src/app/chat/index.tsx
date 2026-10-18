@@ -13,7 +13,7 @@ export default function ChatsScreen() {
   const conversations = useConversations();
 
   return (
-    <Screen>
+    <Screen backdrop="support">
       <StackHeader title="Messages" />
       {conversations.isPending ? (
         <Loading />

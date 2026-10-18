@@ -15,7 +15,7 @@ export default function WishlistScreen() {
   const wishlist = useWishlist();
 
   return (
-    <Screen>
+    <Screen backdrop="wishlist" tab>
       <View style={styles.header}>
         <Text variant="h1">Wishlist</Text>
         {wishlist.data?.length ? (

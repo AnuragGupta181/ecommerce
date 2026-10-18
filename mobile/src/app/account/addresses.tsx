@@ -16,7 +16,7 @@ export default function AddressesScreen() {
   const remove = useDeleteAddress();
 
   return (
-    <Screen>
+    <Screen backdrop="account">
       <StackHeader title="Saved addresses" />
       {addresses.isPending ? (
         <Loading />

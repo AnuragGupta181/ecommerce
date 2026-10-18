@@ -12,7 +12,7 @@ export default function CoinsScreen() {
   const coins = useCoins();
 
   return (
-    <Screen>
+    <Screen backdrop="offers">
       <StackHeader title="Haat coins" />
       {coins.isPending ? (
         <Loading />

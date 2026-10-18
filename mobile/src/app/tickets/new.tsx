@@ -59,7 +59,7 @@ export default function NewTicketScreen() {
     );
 
   return (
-    <Screen>
+    <Screen backdrop="support">
       <StackHeader title="Raise a ticket" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Card title="What is it about?">

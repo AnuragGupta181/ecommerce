@@ -66,7 +66,7 @@ export default function PlanScreen() {
 
   if (plan.isPending) {
     return (
-      <Screen>
+      <Screen backdrop="subscriptions">
         <StackHeader title="" />
         <Loading layout="detail" />
       </Screen>
@@ -74,7 +74,7 @@ export default function PlanScreen() {
   }
   if (plan.isError || !p) {
     return (
-      <Screen>
+      <Screen backdrop="subscriptions">
         <StackHeader title="" />
         <ErrorState error={plan.error} onRetry={() => plan.refetch()} />
       </Screen>
@@ -95,7 +95,7 @@ export default function PlanScreen() {
     }, "Login to subscribe");
 
   return (
-    <Screen>
+    <Screen backdrop="subscriptions">
       <StackHeader title={p.name} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>

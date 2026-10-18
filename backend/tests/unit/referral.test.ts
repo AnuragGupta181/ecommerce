@@ -63,7 +63,7 @@ describe("referral attribution business rules", () => {
   } = {}) {
     return {
       settings: {
-        upsert: async () => ({ ...mockSettings, referralEnabled: overrides.referralEnabled ?? true }),
+        findUnique: async () => ({ ...mockSettings, referralEnabled: overrides.referralEnabled ?? true }),
       },
       user: {
         findUnique: async ({ where }: { where: { referralCode?: string; id?: string } }) => {

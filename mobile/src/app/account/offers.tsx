@@ -12,7 +12,7 @@ export default function OffersScreen() {
   const coupons = usePublicCoupons();
 
   return (
-    <Screen>
+    <Screen backdrop="offers">
       <StackHeader title="Offers & coupons" />
       {coupons.isPending ? (
         <Loading />

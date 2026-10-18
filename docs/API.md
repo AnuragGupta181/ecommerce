@@ -56,7 +56,7 @@ Passwords must be at least 8 characters and contain at least one letter and one 
 |---|---|---|---|
 | GET | `/home` | 🌐 | `{ banners: { carousel, strip }, categories, rails: [{ key, title, items, query }] }` |
 | GET | `/settings` | 🌐 | public store settings (fees, thresholds, coin rules, referral bonuses, payment toggles) |
-| GET | `/categories` | 🌐 | tree: top-level categories with `children` |
+| GET | `/categories` | 🌐 | tree: top-level categories with `children`. `/categories` and `/settings` are CDN-cached for 5 minutes |
 | GET | `/categories/:slug` | 🌐 | category with parent and children |
 | GET | `/brands` | 🌐 | active brands |
 | GET | `/products` | 🌐 | see listing query below |

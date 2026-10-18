@@ -32,7 +32,7 @@ export default function AccountScreen() {
   };
 
   return (
-    <Screen>
+    <Screen backdrop="account" tab>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: TAB_BAR_CLEARANCE }]}>
         <Text variant="h1">Account</Text>
         {user ? (

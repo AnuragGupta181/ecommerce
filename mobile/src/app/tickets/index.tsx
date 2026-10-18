@@ -15,7 +15,7 @@ export default function TicketsScreen() {
   const tickets = useTickets();
 
   return (
-    <Screen>
+    <Screen backdrop="support">
       <StackHeader title="Help & support" right={<Button title="New" small onPress={() => router.push("/tickets/new")} />} />
       {tickets.isPending ? (
         <Loading />

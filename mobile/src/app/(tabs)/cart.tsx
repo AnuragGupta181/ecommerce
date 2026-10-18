@@ -29,7 +29,7 @@ export default function CartScreen() {
   const blocked = items.some((line) => !line.available) || cart.data?.deliverable === false;
 
   return (
-    <Screen>
+    <Screen backdrop="cart" tab>
       <View style={styles.header}>
         <Text variant="h1">My cart</Text>
         {items.length ? (

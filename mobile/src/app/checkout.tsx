@@ -67,7 +67,7 @@ export default function CheckoutScreen() {
   };
 
   return (
-    <Screen>
+    <Screen backdrop="cart">
       <StackHeader title="Checkout" />
       {quote.isPending ? (
         <Loading layout="detail" />

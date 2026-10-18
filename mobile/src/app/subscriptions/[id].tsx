@@ -37,7 +37,7 @@ export default function SubscriptionScreen() {
 
   if (sub.isPending) {
     return (
-      <Screen>
+      <Screen backdrop="subscriptions">
         <StackHeader title="Subscription" />
         <Loading layout="detail" />
       </Screen>
@@ -45,7 +45,7 @@ export default function SubscriptionScreen() {
   }
   if (sub.isError) {
     return (
-      <Screen>
+      <Screen backdrop="subscriptions">
         <StackHeader title="Subscription" />
         <ErrorState error={sub.error} onRetry={() => sub.refetch()} />
       </Screen>
@@ -59,7 +59,7 @@ export default function SubscriptionScreen() {
   const document = (kind: "statement" | "receipt", docId: string) => openDocument.mutate({ kind, id: docId }, { onError: fail("Couldn't open the PDF") });
 
   return (
-    <Screen>
+    <Screen backdrop="subscriptions">
       <StackHeader title={s.number} />
       <ScrollView contentContainerStyle={styles.content}>
         <Card>

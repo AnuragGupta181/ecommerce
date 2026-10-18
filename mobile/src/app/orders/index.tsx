@@ -27,7 +27,7 @@ export default function OrdersScreen() {
   const items = orders.data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
-    <Screen>
+    <Screen backdrop="orders">
       <StackHeader title="My orders" />
       <View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>

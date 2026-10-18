@@ -26,7 +26,7 @@ export default function ProductListingScreen() {
   const sortLabel = SORTS.find((sort) => sort.value === (query.sort ?? "relevance"))?.label;
 
   return (
-    <Screen>
+    <Screen backdrop="shop">
       <StackHeader
         title={params.title || (query.q ? `"${query.q}"` : "Products")}
         right={

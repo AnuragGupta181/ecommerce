@@ -27,7 +27,7 @@ export default function ProfileScreen() {
   const passwordErrors = fieldErrors(change.error);
 
   return (
-    <Screen>
+    <Screen backdrop="account">
       <StackHeader title="Edit profile" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {referralCode ? (

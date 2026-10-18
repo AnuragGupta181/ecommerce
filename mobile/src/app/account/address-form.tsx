@@ -73,7 +73,7 @@ export default function AddressFormScreen() {
   };
 
   return (
-    <Screen>
+    <Screen backdrop="account">
       <StackHeader title={id ? "Edit address" : "Add address"} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

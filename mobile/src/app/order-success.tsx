@@ -11,7 +11,7 @@ export default function OrderSuccessScreen() {
   const { id, orderNumber, payable, coins } = useLocalSearchParams<{ id: string; orderNumber: string; payable: string; coins: string }>();
 
   return (
-    <Screen edges={["top", "bottom"]}>
+    <Screen edges={["top", "bottom"]} backdrop="orders">
       <View style={styles.center}>
         <View style={styles.badge}>
           <CircleCheck size={44} color={colors.success} strokeWidth={1.75} />

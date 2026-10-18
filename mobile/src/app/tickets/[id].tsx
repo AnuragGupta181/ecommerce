@@ -26,7 +26,7 @@ export default function TicketScreen() {
 
   if (ticket.isPending) {
     return (
-      <Screen>
+      <Screen backdrop="support">
         <StackHeader title="Ticket" />
         <Loading layout="detail" />
       </Screen>
@@ -34,7 +34,7 @@ export default function TicketScreen() {
   }
   if (ticket.isError) {
     return (
-      <Screen>
+      <Screen backdrop="support">
         <StackHeader title="Ticket" />
         <ErrorState error={ticket.error} onRetry={() => ticket.refetch()} />
       </Screen>
@@ -50,7 +50,7 @@ export default function TicketScreen() {
     });
 
   return (
-    <Screen>
+    <Screen backdrop="support">
       <StackHeader title={t.number} right={!closed ? <Button title="Close" variant="ghost" small loading={close.isPending} onPress={() => close.mutate()} /> : null} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.content}>

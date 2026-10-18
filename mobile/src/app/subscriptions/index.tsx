@@ -14,7 +14,7 @@ export default function SubscriptionsScreen() {
   const subscriptions = useSubscriptions();
 
   return (
-    <Screen>
+    <Screen backdrop="subscriptions">
       <StackHeader title="My subscriptions" />
       {subscriptions.isPending ? (
         <Loading />

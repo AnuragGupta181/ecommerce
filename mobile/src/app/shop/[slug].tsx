@@ -30,7 +30,7 @@ export default function ShopScreen() {
 
   if (shop.isPending) {
     return (
-      <Screen>
+      <Screen backdrop="shop">
         <StackHeader title="" />
         <Loading layout="grid" />
       </Screen>
@@ -38,7 +38,7 @@ export default function ShopScreen() {
   }
   if (shop.isError) {
     return (
-      <Screen>
+      <Screen backdrop="shop">
         <StackHeader title="" />
         <ErrorState error={shop.error} onRetry={() => shop.refetch()} />
       </Screen>
@@ -49,7 +49,7 @@ export default function ShopScreen() {
   const items = products.data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
-    <Screen>
+    <Screen backdrop="shop">
       <StackHeader title={s.shopName} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.section}>

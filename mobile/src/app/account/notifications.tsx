@@ -15,7 +15,7 @@ export default function NotificationsScreen() {
   const hasUnread = notifications.data?.some((item) => !item.readAt);
 
   return (
-    <Screen>
+    <Screen backdrop="offers">
       <StackHeader
         title="Notifications"
         right={

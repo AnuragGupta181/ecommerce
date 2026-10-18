@@ -31,7 +31,7 @@ export default function OrderDetailScreen() {
 
   if (order.isPending || order.isError) {
     return (
-      <Screen>
+      <Screen backdrop="orders">
         <StackHeader title="Order details" />
         {order.isPending ? <Loading layout="detail" /> : <ErrorState error={order.error} onRetry={() => order.refetch()} />}
       </Screen>
@@ -58,7 +58,7 @@ export default function OrderDetailScreen() {
   rows.push(["Delivery", o.deliveryFee ? formatINR(o.deliveryFee) : "FREE"]);
 
   return (
-    <Screen>
+    <Screen backdrop="orders">
       <StackHeader title={`Order #${o.orderNumber}`} />
       <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={order.isRefetching} onRefresh={() => order.refetch()} tintColor={colors.brand600} />}>
         <Card title="Status" right={<StatusBadge status={o.status} />}>

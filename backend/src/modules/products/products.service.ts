@@ -228,12 +228,12 @@ export async function productRail(
   take = 10,
   point: Point | null = null,
 ) {
-  const rows = await prisma.product.findMany({
-    where: { AND: [{ isActive: true }, sellable, where] },
-    orderBy,
-    take,
-    select: productCardSelect,
-  });
+  const rows = await productRailRows(where, orderBy, take);
   const wishlisted = await wishlistedIds(userId, rows.map((row) => row.id));
   return toProductCards(rows, wishlisted, point);
+}
+
+/** Just the catalog rows of a rail; the caller loads offers and wishlist (see the home feed). */
+export function productRailRows(where: Prisma.ProductWhereInput, orderBy: Prisma.ProductOrderByWithRelationInput[], take = 10) {
+  return prisma.product.findMany({ where: { AND: [{ isActive: true }, sellable, where] }, orderBy, take, select: productCardSelect });
 }
