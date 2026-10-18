@@ -1,0 +1,6 @@
+{
+  "installCommand": "corepack enable && yarn install --immutable",
+  "buildCommand": "npx expo export --platform web --output-dir dist",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

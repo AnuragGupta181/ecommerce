@@ -2,7 +2,7 @@
 
 > Living document. Every task is ticked as soon as it is finished and verified.
 > Last updated: 2026-10-18. **Marketplace backend complete** (Phases 8–11): vendors, shops, per-shop stock and per-km delivery, single-shop cart, subscriptions, tickets, chat, PDFs, payouts, Excel reports. Test logins: [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md).
-> **Next:** deploy (backend, portal and the app's web build on Vercel now; Render/AWS later). Phases 12 (portal) and 13 (mobile) are done.
+> **Live on Vercel:** API https://haat-api.vercel.app, portal https://haat-portal.vercel.app, app (web) https://haat-app.vercel.app. **Next:** Phase 14 leftovers (integration tests for subscriptions/tickets/payouts, FLOWS.md and ARCHITECTURE.md marketplace sections), Render/AWS later.
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 

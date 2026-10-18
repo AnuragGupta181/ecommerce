@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import { secureStorage } from "./secure-storage";
 import { create } from "zustand";
 import type { Session, User } from "./types";
 
@@ -24,7 +24,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   hydrate: async () => {
     try {
-      const raw = await SecureStore.getItemAsync(SESSION_KEY);
+      const raw = await secureStorage.getItem(SESSION_KEY);
       if (raw) {
         const session = JSON.parse(raw) as Session;
         set({ user: session.user, accessToken: session.accessToken, refreshToken: session.refreshToken });
@@ -36,13 +36,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setSession: async (session) => {
     set({ user: session.user, accessToken: session.accessToken, refreshToken: session.refreshToken });
-    await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
+    await secureStorage.setItem(SESSION_KEY, JSON.stringify(session));
   },
 
   setUser: (user) => set({ user }),
 
   clear: async () => {
     set({ user: null, accessToken: null, refreshToken: null });
-    await SecureStore.deleteItemAsync(SESSION_KEY);
+    await secureStorage.removeItem(SESSION_KEY);
   },
 }));

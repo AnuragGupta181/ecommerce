@@ -1,5 +1,19 @@
 # Deployment
 
+## 0. Live (Vercel)
+
+| What | URL | Vercel project | Root |
+|---|---|---|---|
+| API | https://haat-api.vercel.app/api/v1 (health: `/api/v1/health`) | `haat-api` | `backend/` (`api/index.ts`, `vercel.json` with the daily cron) |
+| Admin and shop portal | https://haat-portal.vercel.app (shops: `/vendor`, sign-up: `/vendor/signup`) | `haat-portal` | `frontend/` |
+| Customer app, web build | https://haat-app.vercel.app | `haat-app` | `mobile/` (`vercel.json`: Yarn 4 via corepack, `expo export --platform web`, SPA rewrite) |
+
+The live API uses the seeded **development** database, so the logins in [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md) work there. Point `DATABASE_URL` at a fresh production database (and do not run the demo seed) before real customers use it.
+
+- **Redeploy:** `npx vercel deploy --prod` from each root. Environment variables live in each Vercel project (never in git): the API needs the keys in `backend/.env.example` with `NODE_ENV=production`, `PUBLIC_URL`, `PORTAL_URL` and `CORS_ORIGINS` (the portal and app origins); the portal needs `API_URL`; the app needs `EXPO_PUBLIC_API_URL` and `ENABLE_EXPERIMENTAL_COREPACK=1`.
+- **Web build of the app:** sessions use `localStorage` on web (the keychain on phones, `src/lib/secure-storage.ts`); voice search is phone-only.
+- **Later on Render / AWS:** the same API runs as a long-lived server (`pnpm build && node dist/server.js`); set `ENABLE_SCHEDULER=true` or call `/api/v1/cron/daily` from a cron, and choose `STORAGE_DRIVER=s3` if wanted (docs/MARKETPLACE.md §14).
+
 ## 1. Topology
 
 | Component | Recommended host | Alternative |

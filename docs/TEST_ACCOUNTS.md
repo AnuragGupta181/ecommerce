@@ -2,6 +2,8 @@
 
 `pnpm db:seed` (in `backend/`) creates these accounts on a **development** database, together with the data listed next to each one. Seeding writes straight to the database and sends no emails.
 
+**Live:** portal https://haat-portal.vercel.app · app (web) https://haat-app.vercel.app · API https://haat-api.vercel.app/api/v1
+
 ## Logins
 
 | Account | Login | Password |

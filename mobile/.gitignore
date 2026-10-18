@@ -42,3 +42,6 @@ yarn-error.*
 
 # Yarn 4 local state (regenerated on every install)
 .yarn/install-state.gz
+
+.vercel
+.env*
