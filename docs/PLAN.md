@@ -1,8 +1,8 @@
 # Haat — Master Build Plan
 
 > Living document. Every task is ticked as soon as it is finished and verified.
-> Last updated: 2026-10-15. Multi-branch & vendor management system (Phase 9) in progress.
-> **Next:** Mount branch routes, implement branch context & inventory isolation, wire admin and mobile branch features. Deployment (Phase 7) is parked.
+> Last updated: 2026-10-18. **Marketplace backend complete** (Phases 8–11): vendors, shops, per-shop stock and per-km delivery, single-shop cart, subscriptions, tickets, chat, PDFs, payouts, Excel reports. Test logins: [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md).
+> **Next:** Phase 12 (vendor + super admin portal in Next.js), Phase 13 (mobile), then deploy (backend and portal on Vercel now; Render/AWS later).
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 
@@ -220,37 +220,40 @@ Build a whole phase, then test it; run the smoke test before every push.
 
 ## Phase 8 — Data model
 
-- [ ] Roles `VENDOR`; `Vendor` (approval, commission, staff via `User.vendorId`); `Branch.vendorId` + hours, delivery pricing
-- [ ] Listings: `BranchVariantStock` gains `price`, `mrp`, `costPrice`; `CartItem.branchId`; `Order.vendorId`, commission snapshot, payout link
-- [ ] `Address.lat/lng`; `Rider.vendorId`
-- [ ] Subscriptions: plans, subscriptions, deliveries, pauses, payments
-- [ ] Payouts, tickets + messages, conversations + chat messages, document numbering
-- [ ] Migration + backfill (default vendor/branch owns existing catalog, stock and orders); seed vendors near each other
+- [x] Roles `VENDOR`; `Vendor` (approval, commission, staff via `User.vendorId`); `Branch.vendorId` + hours, delivery pricing
+- [x] Listings: `BranchVariantStock` gains `price`, `mrp`, `costPrice`; `CartItem.branchId`; `Order.vendorId`, commission snapshot, payout link
+- [x] `Address.lat/lng`; `Rider.vendorId`
+- [x] Subscriptions: plans, subscriptions, deliveries, pauses, payments
+- [x] Payouts, tickets + messages, conversations + chat messages, document numbering
+- [x] Migration + backfill (default vendor/branch owns existing catalog, stock and orders); seed vendors near each other
 
 ## Phase 9 — Backend: vendors, listings, stock, geo, cart, orders
 
-- [ ] Vendor signup / approval / staff; admin vendor management; role guards (`requireVendor`)
-- [ ] Branch settings (location, hours, online switch, per-km pricing) and nearby search; mount branches module
-- [ ] Vendor product + listing CRUD; offers per variant (distance, fee, open/closed/out of stock/too far)
-- [ ] `branch-stock` service: automatic (order, cancel, return, subscription) + manual adjust, movements, low-stock email
-- [ ] `geo` distance provider (haversine × road factor; ORS when `ORS_API_KEY`); `pricing.deliveryFeeFor`
-- [ ] Location-aware catalog cards; single-branch cart with conflict + switch-shop suggestions
-- [ ] Checkout per branch with commission snapshot; vendor order management and vendor riders; rider gets customer details
+- [x] Vendor signup / approval / staff; admin vendor management; role guards (`requireVendor`)
+- [x] Branch settings (location, hours, online switch, per-km pricing) and nearby search; mount branches module
+- [x] Vendor product + listing CRUD; offers per variant (distance, fee, open/closed/out of stock/too far)
+- [x] `branch-stock` service: automatic (order, cancel, return, subscription) + manual adjust, movements, low-stock email
+- [x] `geo` distance provider (haversine × road factor; ORS when `ORS_API_KEY`); `pricing.deliveryFeeFor`
+- [x] Location-aware catalog cards; single-branch cart with conflict + switch-shop suggestions
+- [x] Checkout per branch with commission snapshot; vendor order management and vendor riders; rider gets customer details
 
 ## Phase 10 — Backend: subscriptions
 
-- [ ] Plans CRUD (vendor); public plans nearby (daily essentials)
-- [ ] Subscription quote (pure pricing) + subscribe → schedule rows; pause range, skip date, cancel
-- [ ] Vendor today's deliveries: sent (stock deduct) / missed; payments ledger
-- [ ] Daily cron (reminders, stock-vs-subscription warnings, expiry)
+- [x] Plans CRUD (vendor); public plans nearby (daily essentials)
+- [x] Subscription quote (pure pricing) + subscribe → schedule rows; pause range, skip date, cancel
+- [x] Vendor today's deliveries: sent (stock deduct) / missed; payments ledger
+- [x] Daily cron (reminders, stock-vs-subscription warnings, expiry)
 
 ## Phase 11 — Backend: support, chat, documents, payouts, reports
 
-- [ ] Tickets with major/minor routing, full context view, thread, email notifications
-- [ ] Customer ↔ vendor chat with order system messages
-- [ ] PDF invoice, subscription statement, payment receipt, payout statement
-- [ ] Payouts (create from unsettled, mark paid); Excel report export
-- [ ] Vercel Blob upload driver
+- [x] Counter bills (in-shop sales) and vendor dashboard; super admin manages admins and reads the audit log
+- [x] Test accounts with sample data (`prisma/seed-demo.ts`, [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md))
+
+- [x] Tickets with major/minor routing, full context view, thread, email notifications
+- [x] Customer ↔ vendor chat with order system messages
+- [x] PDF invoice, subscription statement, payment receipt, payout statement
+- [x] Payouts (create from unsettled, mark paid); Excel report export
+- [x] Upload drivers chosen by `STORAGE_DRIVER`: Cloudinary (now), Vercel Blob, S3/R2 (Render/AWS later), local disk (dev)
 
 ## Phase 12 — Portal (Next.js): vendor + super admin
 
@@ -267,7 +270,10 @@ Build a whole phase, then test it; run the smoke test before every push.
 
 ## Phase 14 — Quality and docs
 
-- [ ] Unit tests: delivery fee, subscription pricing + schedule, commission, ticket routing
-- [ ] Integration: vendor lifecycle, branch cart + checkout, subscription delivery + ledger, tickets
-- [ ] Smoke test extended to the marketplace flow
-- [ ] API.md, DATABASE.md, FLOWS.md, ARCHITECTURE.md, AGENTS.md updated
+- [x] Unit tests: delivery fee, shop hours, subscription schedule/pricing/ledger, settlement, ticket routing
+- [x] Integration: catalog and checkout rewritten for shops (listings, vendor stock, commission, rider per shop)
+- [ ] Integration: subscriptions, tickets, payouts (pure rules are unit tested; flows covered by the smoke test next)
+- [x] Smoke test extended to the marketplace flow (shop pick, cart conflict, vendor fulfilment, counter bill, chat, read-only admin stock)
+- [ ] Smoke test: subscriptions, tickets and payouts end to end
+- [x] API.md, DATABASE.md, AGENTS.md, MARKETPLACE.md updated
+- [ ] FLOWS.md, ARCHITECTURE.md (marketplace sections)

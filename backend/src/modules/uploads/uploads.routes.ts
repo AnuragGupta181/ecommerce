@@ -3,7 +3,7 @@ import multer from "multer";
 import { env } from "../../config/env.js";
 import { AppError } from "../../lib/errors.js";
 import { ok } from "../../lib/http.js";
-import { adminOnly, authenticate } from "../../middleware/auth.js";
+import { adminOnly, authenticate, vendorOnly } from "../../middleware/auth.js";
 import { storage } from "../../services/storage.js";
 
 const upload = multer({
@@ -38,4 +38,12 @@ export const uploadsRouter = Router();
 
 uploadsRouter.post("/avatar", authenticate, upload.single("file"), async (req: Request, res: Response) => {
   res.status(201).json(ok(await saveImage(req, "avatars")));
+});
+
+/** Vendor portal: /vendor/uploads (product photos, shop logo, ID proof photo) */
+export const vendorUploadsRouter = Router();
+vendorUploadsRouter.use(vendorOnly);
+
+vendorUploadsRouter.post("/", upload.single("file"), async (req: Request, res: Response) => {
+  res.status(201).json(ok(await saveImage(req, "vendors")));
 });

@@ -7,14 +7,14 @@
  *   node --env-file=backend/.env tests/smoke/run.mjs
  *
  * Env: API_URL (default http://localhost:4000/api/v1), ADMIN_SEED_EMAIL, ADMIN_SEED_PASSWORD,
- * VENDOR_SEED_PASSWORD (demo vendor logins from `pnpm db:seed`).
+ * TEST_ACCOUNT_PASSWORD (defaults to the documented test password; see docs/TEST_ACCOUNTS.md).
  * It creates a throwaway customer (smoke+<timestamp>@haat.test) and two orders; run it on a dev database.
  */
 
 const API = process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 4000}/api/v1`;
 const ADMIN_EMAIL = process.env.ADMIN_SEED_EMAIL ?? "admin@haat.local";
 const ADMIN_PASSWORD = process.env.ADMIN_SEED_PASSWORD;
-const VENDOR_PASSWORD = process.env.VENDOR_SEED_PASSWORD;
+const VENDOR_PASSWORD = process.env.TEST_ACCOUNT_PASSWORD ?? "Haat@Test123";
 /** Hebbal, Bengaluru: right next to the seeded "Sharma Dairy & Kirana" shop. */
 const HERE = "13.0352,77.5975";
 
@@ -213,7 +213,7 @@ async function main() {
 
   console.log("\nVendor: fulfil the order");
   if (!VENDOR_PASSWORD || nearest.shop.vendorSlug !== "sharma-dairy") {
-    failures.push("vendor steps need VENDOR_SEED_PASSWORD and the seeded Sharma Dairy shop nearest to the test point");
+    failures.push("vendor steps need the seeded Sharma Dairy shop nearest to the test point");
     return;
   }
   const vendor = await step("vendor login", async () => {

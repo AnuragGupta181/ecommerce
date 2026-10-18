@@ -13,6 +13,7 @@ import {
   vendorSignupSchema,
   vendorStatusActionSchema,
 } from "./vendors.schema.js";
+import { vendorDashboard } from "./vendor-dashboard.service.js";
 import * as service from "./vendors.service.js";
 import { tradingForWrites } from "./vendor-guard.js";
 
@@ -39,6 +40,11 @@ vendorProfileRouter.use(vendorOnly);
 
 vendorProfileRouter.get("/", async (req: Request, res: Response) => {
   res.json(ok(await service.getVendorProfile(requireVendorId(req))));
+});
+
+vendorProfileRouter.get("/dashboard", async (req: Request, res: Response) => {
+  const { days } = z.object({ days: z.coerce.number().int().min(1).max(365).default(30) }).parse(req.query);
+  res.json(ok(await vendorDashboard(requireVendorId(req), requireUser(req).userId, days)));
 });
 
 vendorProfileRouter.patch("/", async (req: Request, res: Response) => {

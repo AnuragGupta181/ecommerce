@@ -49,7 +49,21 @@ const envSchema = z.object({
 
   UPLOAD_DIR: z.string().default("uploads"),
   UPLOAD_MAX_MB: z.coerce.number().positive().default(5),
+  /** local (dev disk) | cloudinary | vercel-blob (Vercel) | s3 (Render, AWS, R2 …) */
+  STORAGE_DRIVER: z.enum(["local", "cloudinary", "vercel-blob", "s3"]).default("local"),
+  /** cloudinary://<api_key>:<api_secret>@<cloud_name> */
+  CLOUDINARY_URL: optionalString,
   BLOB_READ_WRITE_TOKEN: optionalString,
+  S3_BUCKET: optionalString,
+  S3_REGION: z.string().default("ap-south-1"),
+  /** Only for S3-compatible services (R2, B2, MinIO); empty for AWS S3. */
+  S3_ENDPOINT: optionalString,
+  S3_ACCESS_KEY_ID: optionalString,
+  S3_SECRET_ACCESS_KEY: optionalString,
+  /** Public base URL objects are served from (bucket URL or CDN). */
+  S3_PUBLIC_URL: optionalString,
+  /** Long-running servers (Render, AWS): run the daily job in-process at 18:00 IST. Off on Vercel. */
+  ENABLE_SCHEDULER: booleanString,
 
   /** Straight-line km × this ≈ road km, used when no routing key is set. */
   ROAD_FACTOR: z.coerce.number().min(1).max(3).default(1.3),

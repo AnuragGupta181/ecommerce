@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../src/lib/prisma.js";
 import { flushNotifications } from "../../src/services/notify/index.js";
-import { api, createUserSession, unique } from "../helpers.js";
+import { api, createUserSession, createVendorSession, listAtShop, TEST_POINT, unique } from "../helpers.js";
 
 type Session = Awaited<ReturnType<typeof createUserSession>>;
 
 let admin: Session;
+let vendor: Awaited<ReturnType<typeof createVendorSession>>;
+let listingId: string;
 let customer: Session;
 let productId: string;
 let variantId: string;
@@ -13,12 +15,14 @@ let addressId: string;
 let riderId: string;
 let couponCode: string;
 
-const stockOf = async () => (await prisma.productVariant.findUniqueOrThrow({ where: { id: variantId } })).stock;
+// Stock lives on the shop's listing, not the catalog variant.
+const stockOf = async () => (await prisma.branchVariantStock.findUniqueOrThrow({ where: { id: listingId } })).stock;
 const coinsOf = async () => (await prisma.user.findUniqueOrThrow({ where: { id: customer.user.id } })).coinBalance;
 
 beforeAll(async () => {
   admin = await createUserSession("ADMIN");
   customer = await createUserSession();
+  vendor = await createVendorSession();
 
   const category = await api().post("/api/v1/admin/categories").set(admin.auth).send({ name: unique("Snacks ") });
   const product = await api()
@@ -27,10 +31,11 @@ beforeAll(async () => {
     .send({
       name: unique("Masala Chips "),
       categoryId: category.body.data.id,
-      variants: [{ sku: unique("CHIPS-"), mrp: 40_000, price: 30_000, stock: 5 }],
+      variants: [{ sku: unique("CHIPS-"), mrp: 40_000, price: 30_000, stock: 0 }],
     });
   productId = product.body.data.id;
   variantId = product.body.data.variants[0].id;
+  listingId = await listAtShop(vendor, variantId, { price: 30_000, mrp: 40_000, stock: 5, costPrice: 20_000 });
 
   couponCode = unique("T").toUpperCase().slice(0, 12);
   await api()
@@ -41,13 +46,13 @@ beforeAll(async () => {
   const rider = await api()
     .post("/api/v1/admin/riders")
     .set(admin.auth)
-    .send({ name: "Test Rider", phone: `9${Date.now().toString().slice(-9)}`, email: "rider@test.local", vehicleNumber: "dl01x1" });
+    .send({ name: "Test Rider", phone: `9${Date.now().toString().slice(-9)}`, email: "rider@test.local", vehicleNumber: "dl01x1", vendorId: vendor.vendorId });
   riderId = rider.body.data.id;
 
   const address = await api()
     .post("/api/v1/addresses")
     .set(customer.auth)
-    .send({ name: "Asha", phone: "9876543210", line1: "12 MG Road", city: "Delhi", state: "Delhi", pincode: "110001" });
+    .send({ name: "Asha", phone: "9876543210", line1: "12 MG Road", city: "Delhi", state: "Delhi", pincode: "110001", ...TEST_POINT });
   addressId = address.body.data.id;
 });
 
@@ -130,7 +135,10 @@ describe("shopping → order → delivery", () => {
     expect((await status("OUT_FOR_DELIVERY")).status).toBe(409);
     expect((await status("CONFIRMED")).status).toBe(200);
 
-    const inactive = await prisma.rider.create({ data: { name: "Off Duty", phone: `+918${Date.now().toString().slice(-9)}`, isActive: false } });
+    const inactive = await prisma.rider.create({ data: { name: "Off Duty", phone: `+918${Date.now().toString().slice(-9)}`, isActive: false, vendorId: vendor.vendorId } });
+    const otherShopRider = await prisma.rider.create({ data: { name: "Elsewhere", phone: `+917${Date.now().toString().slice(-9)}`, vendorId: (await createVendorSession()).vendorId } });
+    const wrongShop = await api().patch(`/api/v1/admin/orders/${order.id}/assign-rider`).set(admin.auth).send({ riderId: otherShopRider.id });
+    expect(wrongShop.status).toBe(400);
     const rejected = await api().patch(`/api/v1/admin/orders/${order.id}/assign-rider`).set(admin.auth).send({ riderId: inactive.id });
     expect(rejected.status).toBe(400);
 
@@ -154,6 +162,8 @@ describe("shopping → order → delivery", () => {
     expect((await status("DELIVERED")).status).toBe(200);
     expect(await coinsOf()).toBe(order.coinsToEarn);
     expect(order.coinsToEarn).toBe(10);
+
+    expect(await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({ vendorId: vendor.vendorId, commissionBps: 1000, commissionAmount: 6_000, vendorEarning: 54_000 });
 
     const review = await api().post("/api/v1/reviews").set(customer.auth).send({ productId, rating: 5, comment: "Crunchy!" });
     expect(review.status).toBe(201);

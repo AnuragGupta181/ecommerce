@@ -2,4 +2,3 @@ allowBuilds:
   "@prisma/engines": true
   esbuild: true
   prisma: true
-storeDir: ../.pnpm-store

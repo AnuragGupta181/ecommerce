@@ -212,13 +212,17 @@ Profit is `(price − costPrice) × quantity`. Lines without a cost price are fl
 - The product detail, cart and vendor stock screens refetch every 15 s while visible (React Query `refetchInterval`), and on app focus.
 - Checkout always re-validates stock inside the transaction, so a stale screen can never oversell.
 
-## 14. Platform constraints (Vercel)
+## 14. Hosting: Vercel now, Render or AWS later
 
-| Constraint | Consequence |
-|---|---|
-| Serverless: no long-lived process | Daily job runs on Vercel Cron; polling instead of push; notifications are awaited where a request must not end before they send |
-| Read-only file system | Uploads (vendor ID proof, product images) need object storage: the `uploads` module gets a Vercel Blob driver (`BLOB_READ_WRITE_TOKEN`) alongside local disk for dev |
-| Hobby plan crons run at most daily | One daily job does everything |
+The backend runs unchanged on both; only environment variables differ.
+
+| Concern | Vercel (now) | Render / AWS (later) |
+|---|---|---|
+| Daily job | Vercel Cron → `GET /api/v1/cron/daily` with `Authorization: Bearer <CRON_SECRET>` | Render Cron Job / EventBridge calling the same URL, or `ENABLE_SCHEDULER=true` on a single always-on instance |
+| Uploads | `STORAGE_DRIVER=cloudinary` (or `vercel-blob`) | `cloudinary` or `s3` (AWS S3, Cloudflare R2, Backblaze B2) |
+| Live stock | Polling (no long-lived connections) | Polling (server-sent events possible later) |
+| Notifications | Sent after commit in the background; the Hobby plan's short timeouts are fine for single emails | Same |
+| Database DNS | `DB_DNS_ORDER` only if a network drops IPv4 or IPv6 to Neon | Same |
 
 ## 15. Module layout (backend)
 

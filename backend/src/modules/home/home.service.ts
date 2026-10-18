@@ -1,7 +1,9 @@
 import { listLiveBanners } from "../banners/banners.service.js";
 import { getCategoryTree } from "../categories/categories.service.js";
 import type { Point } from "../geo/geo.js";
+import { nearbyShops } from "../branches/branch.service.js";
 import { productRail } from "../products/products.service.js";
+import { listPublicPlans } from "../subscriptions/plans.service.js";
 
 const UNDER_PRICE = 49_900;
 const NEW_ARRIVAL_DAYS = 30;
@@ -31,7 +33,9 @@ export async function getHomeFeed(userId?: string, point: Point | null = null) {
     },
   };
 
-  const [banners, categories, freshGroceries, medicinesWellness, deals, bestsellers, topRated, newArrivals, budget] = await Promise.all([
+  const [plans, shops, banners, categories, freshGroceries, medicinesWellness, deals, bestsellers, topRated, newArrivals, budget] = await Promise.all([
+    listPublicPlans(point, { page: 1, limit: 10 }),
+    nearbyShops(point, 10),
     listLiveBanners(),
     getCategoryTree(),
     rail(groceryFilter, [{ soldCount: "desc" }, { ratingAvg: "desc" }]),
@@ -60,5 +64,8 @@ export async function getHomeFeed(userId?: string, point: Point | null = null) {
     },
     categories: categories.map(({ children: _children, ...category }) => category),
     rails,
+    /** Subscription plans (milk, vegetables …) from shops that deliver here. */
+    dailyEssentials: plans.items.filter((plan) => plan.shop.deliverable),
+    shops,
   };
 }

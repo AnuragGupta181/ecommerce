@@ -7,6 +7,7 @@
 import { readFile } from "node:fs/promises";
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma.js";
+import { seedDemo } from "./seed-demo.js";
 import { seedVendors } from "./seed-vendors.js";
 
 
@@ -316,6 +317,7 @@ async function main() {
   await seedSearchTerms();
   await seedRiders();
   await seedVendors();
+  await seedDemo();
 }
 
 main()

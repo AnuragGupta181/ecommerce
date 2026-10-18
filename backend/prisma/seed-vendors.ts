@@ -6,6 +6,7 @@
 import bcrypt from "bcryptjs";
 import type { Prisma } from "../src/generated/prisma/client.js";
 import { prisma } from "../src/lib/prisma.js";
+import { TEST_ACCOUNT_PASSWORD } from "./seed-demo.js";
 
 const GROCERY = ["fruits", "daily-essentials", "oil-masala", "vegetables", "dairy-bakery", "snacks-beverages", "atta-rice-dal"];
 
@@ -243,9 +244,8 @@ async function upsertPlans(vendorId: string, branchId: string, plans: PlanSeed[]
 }
 
 export async function seedVendors() {
-  // Demo vendor logins share one password from the env; without it, vendors are seeded without logins.
-  const password = process.env.VENDOR_SEED_PASSWORD;
-  const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+  // Demo vendor logins use the documented test password (docs/TEST_ACCOUNTS.md).
+  const passwordHash = await bcrypt.hash(TEST_ACCOUNT_PASSWORD, 10);
 
   for (const seed of VENDORS) {
     const vendor = await prisma.vendor.upsert({ where: { slug: seed.vendor.slug }, update: {}, create: seed.vendor });
@@ -257,7 +257,7 @@ export async function seedVendors() {
     const listings = await upsertListings(branch.id, seed);
     if (seed.plans) await upsertPlans(vendor.id, branch.id, seed.plans);
 
-    if (seed.owner && passwordHash) {
+    if (seed.owner) {
       await prisma.user.upsert({
         where: { email: seed.owner.email },
         update: {},
@@ -266,7 +266,6 @@ export async function seedVendors() {
     }
     console.log(`✓ vendor ${vendor.shopName} (${vendor.status}, ${listings} listings)`);
   }
-  if (!passwordHash) console.log("• VENDOR_SEED_PASSWORD not set: demo vendors have no logins");
 
   // Existing riders work for the platform shop; each demo vendor gets one of its own.
   const platform = await prisma.vendor.findUniqueOrThrow({ where: { slug: "haat" } });

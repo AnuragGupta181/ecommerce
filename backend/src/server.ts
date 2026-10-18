@@ -2,12 +2,15 @@ import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { pool, prisma } from "./lib/prisma.js";
+import { startScheduler } from "./modules/cron/scheduler.js";
 import { flushNotifications } from "./services/notify/index.js";
-
 
 const server = createApp().listen(env.PORT, () => {
   logger.info(`Haat API listening on http://localhost:${env.PORT}/api/v1`);
 });
+
+// Serverless hosts trigger /cron/daily externally; a long-running server can run it itself.
+if (env.ENABLE_SCHEDULER) startScheduler();
 
 async function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down");
