@@ -37,6 +37,11 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<Search
     { label: "Orders to pack", count: today.toPack, href: "/vendor/orders?status=CONFIRMED" },
     { label: "Packed, waiting for a rider", count: today.toDispatch, href: "/vendor/orders?status=PACKED" },
     { label: "Out for delivery", count: today.outForDelivery, href: "/vendor/orders?status=OUT_FOR_DELIVERY" },
+    ...(data.shop.subscriptionsEnabled
+      ? [{ label: `Subscription drops today (${today.dropsDelivered} sent)`, count: today.dropsScheduled, href: "/vendor/deliveries" }]
+      : []),
+    { label: "Unread messages", count: data.unreadMessages, href: "/vendor/messages" },
+    { label: "Open tickets", count: data.openTickets, href: "/vendor/tickets" },
   ];
 
   return (
@@ -88,7 +93,7 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<Search
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <Card title="Stock">
+        <Card title="Stock" actions={<Link href="/vendor/stock" className="text-xs font-semibold hover:underline">Manage</Link>}>
           <dl className="flex flex-col gap-2 p-5">
             <div className="flex justify-between">
               <dt className="text-ink-700">Units in stock</dt>

@@ -2,7 +2,7 @@
 
 > Living document. Every task is ticked as soon as it is finished and verified.
 > Last updated: 2026-10-18. **Marketplace backend complete** (Phases 8–11): vendors, shops, per-shop stock and per-km delivery, single-shop cart, subscriptions, tickets, chat, PDFs, payouts, Excel reports. Test logins: [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md).
-> **Next:** Phase 12 (vendor + super admin portal in Next.js), Phase 13 (mobile), then deploy (backend and portal on Vercel now; Render/AWS later).
+> **Next:** Phase 13 (mobile), then deploy (backend and portal on Vercel now; Render/AWS later). Phase 12 portal is done.
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 
@@ -257,9 +257,10 @@ Build a whole phase, then test it; run the smoke test before every push.
 
 ## Phase 12 — Portal (Next.js): vendor + super admin
 
-- [ ] Role-aware session, navigation and guards; vendor signup page
-- [ ] Vendor: dashboard, shop settings, products + listings, stock, orders, riders, plans, today's deliveries, subscribers + payments, tickets, messages, payouts, reports
-- [ ] Admin: vendors (approve, commission, suspend), payouts, all tickets, vendor filter on orders
+- [x] Role-aware session, navigation and guards (admins at `/`, shops at `/vendor`); public shop signup (`/vendor/signup`) and rider schedule page (`/r/<token>`)
+- [x] Vendor: dashboard, shop settings (profile, branches, hours, delivery charges, online switch, staff), products + catalog listings, stock with log, orders, counter bills, riders + schedule links, plans, deliveries, subscribers + payments, tickets, messages (polling), payouts, Excel reports
+- [x] Admin: vendors (approve, reject, suspend, commission), payouts (preview, create, mark paid), all tickets (escalate / hand back), shop filter on orders, read-only shop stock, reports; super admin: admins and audit log
+- [x] PDFs and workbooks stream through allow-listed download routes (`/download`, `/vendor/download`)
 
 ## Phase 13 — Mobile
 

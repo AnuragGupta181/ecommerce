@@ -92,19 +92,29 @@ route (auth middleware) → handler: schema.parse() → service → prisma
   coins capped by `coinMaxRedeemPercent` and 1 coin = 100 paise (`PAISE_PER_COIN`). Clients render
   the server's `PriceSummary`; the smoke test asserts quote-equals-order-payable.
 
-## Admin (frontend/) specifics
+## Portal (frontend/) specifics
 
-- **`proxy.ts` at the app root, not `middleware.ts`** — Next 16 renamed it. It guards every page and
-  rotates the access token *before* rendering, forwarding new cookies to both the browser and the
-  current render.
+- **One app, two areas.** Admins use `/` (`app/(dashboard)/`), shop owners and staff use `/vendor`
+  (`app/vendor/(portal)/`). `/vendor/signup` and the rider page `/r/<token>` are public.
+- **`proxy.ts` at the app root, not `middleware.ts`** — Next 16 renamed it. It guards every page,
+  sends each role back to its own area (`pathAllowed` in `lib/auth/session-cookies.ts`) and rotates
+  the access token *before* rendering, forwarding new cookies to both the browser and the current
+  render.
 - Tokens live only in httpOnly cookies (`haat_at` / `haat_rt` / `haat_admin`, contract in
   `lib/auth/session-cookies.ts`) and never reach client JS. Concurrent prefetches share one
   rotation per refresh token via a 15 s dedupe map.
 - `lib/server/api.ts` is the only module that talks to the backend (`server-only`); a 401 or a
   missing token `redirect("/session-expired")`. Server Actions re-authorize themselves with
-  `requireAdmin()` from `lib/server/session.ts` — they do not trust the page that rendered them —
+  `requireAdmin()` / `requireVendor()` / `requireSuperAdmin()` from `lib/server/session.ts` — they
+  do not trust the page that rendered them —
   and wrap work in `runAction()`, which converts `ApiError` into `{ ok: false, message, fieldErrors }`
   for forms while letting `redirect()`/`notFound()` propagate.
+- Shared views take Server Actions as props (`OrderView`, `TicketView`, `PayoutPage`), so admin
+  and vendor pages reuse one component and differ only in which endpoints their actions call.
+  Marketplace shapes live in `lib/marketplace-types.ts`; badge colours in `lib/status-tones.ts`
+  (not in a `"use client"` file, or server pages cannot read them).
+- Files (PDF, `.xlsx`) go through `app/download/route.ts` and `app/vendor/download/route.ts`, which
+  only forward allow-listed backend paths with the session token.
 - Path alias is `@/*` → project root. `cacheComponents: true`, so request-time data must sit behind
   `<Suspense>`. Server Action bodies are capped at 6 MB for image uploads.
 

@@ -3,11 +3,11 @@
 import { Upload, X } from "lucide-react";
 import { useRef, useTransition } from "react";
 import { toast } from "sonner";
-import { uploadImage } from "@/lib/server/upload-action";
+import { uploadImage, uploadVendorImage } from "@/lib/server/upload-action";
 import { Thumb } from "./thumb";
 
-/** Single image field: upload a file or paste a URL. */
-export function ImagePicker({ value, onChange, label = "Image" }: { value: string; onChange: (url: string) => void; label?: string }) {
+/** Single image field: upload a file or paste a URL. Shops upload through their own endpoint. */
+export function ImagePicker({ value, onChange, label = "Image", portal = "admin" }: { value: string; onChange: (url: string) => void; label?: string; portal?: "admin" | "vendor" }) {
   const input = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
 
@@ -15,7 +15,7 @@ export function ImagePicker({ value, onChange, label = "Image" }: { value: strin
     const form = new FormData();
     form.set("file", file);
     start(async () => {
-      const result = await uploadImage(form);
+      const result = await (portal === "vendor" ? uploadVendorImage : uploadImage)(form);
       if (result.ok) onChange(result.data.url);
       else toast.error(result.message);
     });

@@ -153,7 +153,7 @@ Passwords must be at least 8 characters and contain at least one letter and one 
 | GET | `/inventory/summary?vendorId=&branchId=` | `{ lowStock, outOfStock, totalUnits, stockValue }` |
 | GET | `/inventory/listings/:id/movements` | stock log of one listing |
 | GET | `/orders?q=&status=&riderId=&vendorId=&branchId=&from=&to=` | includes `vendor`, `branch` |
-| GET | `/orders/status-counts` | `{ PLACED: 3, … }` |
+| GET | `/orders/status-counts?vendorId=` | `{ PLACED: 3, … }`, optionally for one shop |
 | GET | `/orders/:id` | detail plus `allowedTransitions`, `canAssignRider`, `whatsappLinks`, `notificationLogs` |
 | PATCH | `/orders/:id/status` | `{ status, note? }`. Validated by the state machine |
 | PATCH | `/orders/:id/assign-rider` | `{ riderId, note? }`. Emails and WhatsApps the customer, rider and admin |
@@ -274,3 +274,5 @@ All routes are scoped to the caller's shop. Suspended or rejected shops are read
 | GET / POST / DELETE | `/admins`, `/admins/:id`; POST `/admins/:id/restore` | **super admin**: admin accounts |
 
 Error codes added: `CART_SHOP_CONFLICT` (409), `SHOP_UNAVAILABLE` (409).
+
+**Date filters** (`from` / `to` on orders, counter sales, payouts, reports and the audit log) accept a calendar day such as `2026-10-18`, meaning that whole day in IST (`to` is inclusive), or a full ISO timestamp.
