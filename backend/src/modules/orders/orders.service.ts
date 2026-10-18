@@ -4,9 +4,14 @@ import { AppError } from "../../lib/errors.js";
 import { pageMeta, toSkipTake } from "../../lib/pagination.js";
 import { prisma, type Db } from "../../lib/prisma.js";
 import { inBackground, notifyOrderPlaced } from "../../services/notify/index.js";
-import { buildQuote, loadLines, type RequestedLine } from "../cart/quote.js";
+import { nextNumber } from "../../lib/numbering.js";
+import { applyListingStockChange, type StockChangeResult } from "../branch-stock/branch-stock.service.js";
+import { buildQuote, loadLines, loadShop, type RequestedLine } from "../cart/quote.js";
+import { addressPoint, customerPoint } from "../geo/customer-point.js";
+import type { Point } from "../geo/geo.js";
+import { defaultListing } from "../listings/offers.service.js";
+import { onOrderPlaced } from "./order-events.js";
 import { changeCoins } from "../coins/coins.service.js";
-import { applyStockChange } from "../inventory/inventory.service.js";
 import { getSettings } from "../settings/settings.service.js";
 import { canCustomerCancel, canRequestReturn, TIMELINE_STEPS } from "./order-status.js";
 import { transitionOrder } from "./order-transitions.js";
@@ -17,24 +22,49 @@ function generateOrderNumber(now = new Date()): string {
   return `HT${yymmdd}${randomDigits(5)}`;
 }
 
-async function requestedLines(db: Db, userId: string, items: QuoteInput["items"]): Promise<{ lines: RequestedLine[]; fromCart: boolean }> {
-  if (items) return { lines: items, fromCart: false };
-  const cart = await db.cartItem.findMany({ where: { userId }, select: { id: true, variantId: true, quantity: true } });
+type Checkout = { branchId: string; lines: RequestedLine[]; fromCart: boolean };
+
+/** Lines to buy and the shop selling them: the cart's shop, or the chosen/best shop for "buy now". */
+async function checkoutLines(db: Db, userId: string, input: QuoteInput, point: Point | null): Promise<Checkout> {
+  if (input.items) {
+    let branchId = input.branchId;
+    if (!branchId) {
+      const offer = await defaultListing(db, input.items[0]!.variantId, point);
+      if (!offer) throw new AppError("OUT_OF_STOCK", "No shop near you has this right now");
+      branchId = offer.shop.branchId;
+    }
+    return { branchId, lines: input.items, fromCart: false };
+  }
+  const cart = await db.cartItem.findMany({ where: { userId }, select: { id: true, variantId: true, quantity: true, branchId: true } });
+  const branchId = cart.find((item) => item.branchId)?.branchId;
+  if (!branchId) throw AppError.badRequest("Your cart is empty");
   return {
+    branchId,
     lines: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity, cartItemId: item.id })),
     fromCart: true,
   };
 }
 
-/** Checkout preview: same numbers the order will be placed with. */
-export async function quote(userId: string, input: QuoteInput) {
-  const { lines: requested } = await requestedLines(prisma, userId, input.items);
-  const lines = await loadLines(prisma, requested);
-  const { summary } = await buildQuote(prisma, userId, lines, input);
-  return { items: lines, summary };
+/** The selected address's point, else the browsing point / default address. */
+async function destinationFor(db: Db, userId: string, addressId: string | undefined, browsing: Point | null) {
+  if (addressId) {
+    const address = await db.address.findFirst({ where: { id: addressId, userId }, select: { lat: true, lng: true } });
+    const point = address ? addressPoint(address) : null;
+    if (point) return point;
+  }
+  return customerPoint(db, userId, browsing);
 }
 
-export async function placeOrder(userId: string, input: PlaceOrderInput) {
+/** Checkout preview: same numbers the order will be placed with. */
+export async function quote(userId: string, input: QuoteInput, browsing: Point | null) {
+  const point = await destinationFor(prisma, userId, input.addressId, browsing);
+  const { branchId, lines: requested } = await checkoutLines(prisma, userId, input, point);
+  const [branch, lines] = await Promise.all([loadShop(prisma, branchId), loadLines(prisma, branchId, requested)]);
+  const { summary, shop, deliverable } = await buildQuote(prisma, userId, branch, point, lines, input);
+  return { shop, items: lines, summary, deliverable };
+}
+
+export async function placeOrder(userId: string, input: PlaceOrderInput, browsing: Point | null) {
   const [settings, address] = await Promise.all([
     getSettings(),
     prisma.address.findFirst({ where: { id: input.addressId, userId } }),
@@ -44,23 +74,39 @@ export async function placeOrder(userId: string, input: PlaceOrderInput) {
   if (input.paymentMethod === "UPI_ON_DELIVERY" && !settings.upiOnDeliveryEnabled) {
     throw AppError.badRequest("UPI on Delivery is unavailable");
   }
+  const point = addressPoint(address) ?? (await customerPoint(prisma, userId, browsing));
 
+  const lowStock: StockChangeResult[] = [];
   const order = await prisma.$transaction(async (tx) => {
-    const { lines: requested, fromCart } = await requestedLines(tx, userId, input.items);
+    const { branchId, lines: requested, fromCart } = await checkoutLines(tx, userId, input, point);
     if (requested.length === 0) throw AppError.badRequest("Your cart is empty");
 
-    const lines = await loadLines(tx, requested);
+    const branch = await loadShop(tx, branchId);
+    const lines = await loadLines(tx, branchId, requested);
     const unavailable = lines.find((line) => !line.available);
     if (unavailable || lines.length !== requested.length) {
       throw new AppError("OUT_OF_STOCK", unavailable ? `${unavailable.product.name}: ${unavailable.unavailableReason}` : "Some items are no longer available");
     }
 
-    const { summary, coupon } = await buildQuote(tx, userId, lines, input, true);
+    const { summary, coupon, shop, distanceKm, deliverable } = await buildQuote(tx, userId, branch, point, lines, input, true);
+    if (!shop.isOpen) throw new AppError("SHOP_UNAVAILABLE", `${shop.vendorName} is closed right now${shop.statusMessage ? ` (${shop.statusMessage})` : ""}`);
+    if (!deliverable) throw new AppError("SHOP_UNAVAILABLE", `${shop.vendorName} does not deliver this far. Choose a nearer shop.`);
+
+    const vendor = await tx.vendor.findUniqueOrThrow({ where: { id: shop.vendorId }, select: { commissionBps: true } });
+    const commissionAmount = Math.round((summary.itemsTotal * vendor.commissionBps) / 10_000);
+    const costs = await tx.branchVariantStock.findMany({
+      where: { branchId, variantId: { in: lines.map((line) => line.variant.id) } },
+      select: { variantId: true, costPrice: true },
+    });
+    const costOf = new Map(costs.map((row) => [row.variantId, row.costPrice]));
 
     const created = await tx.order.create({
       data: {
         orderNumber: generateOrderNumber(),
+        invoiceNumber: await nextNumber(tx, "INV"),
         userId,
+        branchId,
+        vendorId: shop.vendorId,
         paymentMethod: input.paymentMethod,
         shippingAddress: {
           name: address.name,
@@ -72,6 +118,8 @@ export async function placeOrder(userId: string, input: PlaceOrderInput) {
           state: address.state,
           pincode: address.pincode,
           type: address.type,
+          lat: point?.lat ?? null,
+          lng: point?.lng ?? null,
         },
         itemsMrp: summary.itemsMrp,
         itemsTotal: summary.itemsTotal,
@@ -82,6 +130,11 @@ export async function placeOrder(userId: string, input: PlaceOrderInput) {
         deliveryFee: summary.deliveryFee,
         payable: summary.payable,
         coinsToEarn: summary.coinsToEarn,
+        distanceKm,
+        commissionBps: vendor.commissionBps,
+        commissionAmount,
+        // Coupons and coins are platform-funded, so they never reduce what the vendor earns.
+        vendorEarning: summary.itemsTotal - commissionAmount + summary.deliveryFee,
         customerNote: input.note,
         items: {
           create: lines.map((line) => ({
@@ -93,6 +146,7 @@ export async function placeOrder(userId: string, input: PlaceOrderInput) {
             imageUrl: line.product.imageUrl,
             mrp: line.variant.mrp,
             price: line.variant.price,
+            costPrice: costOf.get(line.variant.id) ?? null,
             quantity: line.quantity,
             lineTotal: line.lineTotal,
           })),
@@ -102,14 +156,15 @@ export async function placeOrder(userId: string, input: PlaceOrderInput) {
     });
 
     for (const line of lines) {
-      await applyStockChange(tx, {
-        variantId: line.variant.id,
+      const change = await applyListingStockChange(tx, {
+        listingId: line.listingId!,
         delta: -line.quantity,
         type: "SALE",
         reason: `Order ${created.orderNumber}`,
         orderId: created.id,
         actorId: userId,
       });
+      if (change?.crossedLow) lowStock.push(change);
       await tx.product.update({ where: { id: line.product.id }, data: { soldCount: { increment: line.quantity } } });
     }
 
@@ -140,6 +195,7 @@ export async function placeOrder(userId: string, input: PlaceOrderInput) {
   });
 
   inBackground(() => notifyOrderPlaced(order.id));
+  inBackground(() => onOrderPlaced(order.id, lowStock));
   return { id: order.id, orderNumber: order.orderNumber, payable: order.payable, coinsToEarn: order.coinsToEarn, status: order.status };
 }
 

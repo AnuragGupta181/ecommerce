@@ -1,6 +1,6 @@
 import type { OrderStatus } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
-import { inventorySummary } from "../inventory/inventory.service.js";
+import { stockSummary } from "../branch-stock/branch-stock.service.js";
 import { ACTIVE_STATUSES } from "../orders/order-status.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -45,7 +45,7 @@ export async function getDashboard(days: number) {
       prisma.user.count({ where: { role: "CUSTOMER", createdAt: { gte: rangeStart } } }),
       prisma.user.count({ where: { role: "CUSTOMER", createdAt: { gte: previousStart, lt: rangeStart } } }),
       prisma.order.count({ where: { status: { in: ["PLACED", "CONFIRMED", "PACKED"] } } }),
-      inventorySummary(),
+      stockSummary({}),
       prisma.order.findMany({
         where: { createdAt: { gte: rangeStart }, status: { in: REVENUE_STATUSES } },
         select: { createdAt: true, payable: true },

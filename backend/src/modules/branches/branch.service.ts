@@ -1,228 +1,86 @@
-import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../lib/errors.js";
-import { logger } from "../../lib/logger.js";
-import type { CreateBranchBody, UpdateBranchBody } from "./branch.schema.js";
-import type { BranchWithDistance } from "./branch.presenter.js";
+import { prisma, type Db } from "../../lib/prisma.js";
+import { slugify } from "../../lib/slug.js";
+import { uniqueSlug } from "../../lib/unique-slug.js";
+import { audit, type AuditActor } from "../audit/audit.service.js";
+import type { Point } from "../geo/geo.js";
+import { describeShop, offerBranchSelect } from "../listings/offers.service.js";
+import type { BranchInput, BranchUpdate, SetOnlineInput } from "./branch.schema.js";
 
-// ─── Geo ──────────────────────────────────────────────────────────────────
+const slugTaken = async (slug: string) => (await prisma.branch.count({ where: { slug } })) > 0;
 
-/**
- * Haversine great-circle distance between two points (decimal degrees).
- * Accurate enough for delivery-radius checks (error < 0.5% for distances under 100 km).
- * Pure function — no external library, fully unit-testable.
- */
-export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371; // Earth radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+export async function createBranchFor(db: Db, vendorId: string, vendorSlug: string, input: BranchInput) {
+  const slug = await uniqueSlug(slugify(`${vendorSlug}-${input.name}`), slugTaken);
+  return db.branch.create({ data: { ...input, slug, vendorId } });
 }
 
-// ─── Public queries ───────────────────────────────────────────────────────
-
-/**
- * Returns active branches sorted by distance from the given coordinates.
- * Each branch includes `distanceKm` and `isWithinRadius`.
- */
-export async function listBranchesByDistance(lat: number, lng: number, limit = 10): Promise<BranchWithDistance[]> {
-  const branches = await prisma.branch.findMany({
-    where: { isActive: true },
-    orderBy: { sortOrder: "asc" },
-  });
-
-  return branches
-    .map((b) => {
-      const distanceKm = haversineKm(lat, lng, b.lat, b.lng);
-      return { ...b, distanceKm, isWithinRadius: distanceKm <= b.deliveryRadiusKm };
-    })
-    .sort((a, b) => a.distanceKm - b.distanceKm)
-    .slice(0, limit);
-}
-
-/**
- * Returns the nearest online+active branch that covers the given point.
- * Falls back to the nearest online branch if none covers it (best-effort).
- * Throws SERVICE_UNAVAILABLE if no online branch exists at all.
- */
-export async function findNearestBranch(lat: number, lng: number) {
-  const onlineBranches = await prisma.branch.findMany({
-    where: { isActive: true, isOnline: true },
-  });
-  if (onlineBranches.length === 0) {
-    throw AppError.serviceUnavailable("All branches are currently offline. Please try again later.");
-  }
-
-  const withDistance = onlineBranches
-    .map((b) => ({ ...b, distanceKm: haversineKm(lat, lng, b.lat, b.lng) }))
-    .sort((a, b) => a.distanceKm - b.distanceKm);
-
-  // Prefer the nearest branch that covers the point with its delivery radius.
-  const covering = withDistance.filter((b) => b.distanceKm <= b.deliveryRadiusKm);
-  const chosen = covering[0] ?? withDistance[0]!;
-  return { ...chosen, isWithinRadius: chosen.distanceKm <= chosen.deliveryRadiusKm };
-}
-
-export async function getBranchById(id: string) {
-  const branch = await prisma.branch.findUnique({ where: { id } });
+async function ownBranch(vendorId: string, branchId: string) {
+  const branch = await prisma.branch.findFirst({ where: { id: branchId, vendorId } });
   if (!branch) throw AppError.notFound("Branch");
   return branch;
 }
 
-// ─── Admin CRUD ───────────────────────────────────────────────────────────
+// ───────────────────────── vendor ─────────────────────────
 
-export async function listBranchesAdmin() {
+export async function listVendorBranches(vendorId: string) {
   const branches = await prisma.branch.findMany({
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    include: {
-      _count: { select: { orders: true, riders: true } },
-      branchStock: { select: { stock: true } },
-    },
+    where: { vendorId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: { ...offerBranchSelect, address: true, city: true, state: true, pincode: true, phone: true, email: true, slug: true, _count: { select: { branchStock: true, orders: true } } },
   });
-
-  return branches.map((b) => ({
-    id: b.id,
-    name: b.name,
-    slug: b.slug,
-    city: b.city,
-    state: b.state,
-    isActive: b.isActive,
-    isOnline: b.isOnline,
-    offlineMessage: b.offlineMessage,
-    deliveryRadiusKm: b.deliveryRadiusKm,
-    sortOrder: b.sortOrder,
-    orderCount: b._count.orders,
-    riderCount: b._count.riders,
-    totalStock: b.branchStock.reduce((sum, s) => sum + s.stock, 0),
-    createdAt: b.createdAt,
-    updatedAt: b.updatedAt,
-  }));
+  return branches.map(({ _count, ...branch }) => ({ ...branch, ...describeShop(branch, null), listingCount: _count.branchStock, orderCount: _count.orders }));
 }
 
-export async function createBranch(input: CreateBranchBody) {
-  const existing = await prisma.branch.findUnique({ where: { slug: input.slug } });
-  if (existing) throw AppError.conflict("Branch slug is already taken");
-  return prisma.branch.create({ data: input });
+export async function createVendorBranch(vendorId: string, input: BranchInput, actor: AuditActor) {
+  const vendor = await prisma.vendor.findUniqueOrThrow({ where: { id: vendorId }, select: { slug: true } });
+  return prisma.$transaction(async (tx) => {
+    const branch = await createBranchFor(tx, vendorId, vendor.slug, input);
+    await audit(tx, actor, { action: "branch.create", entity: "branch", entityId: branch.id, vendorId });
+    return branch;
+  });
 }
 
-export async function updateBranch(id: string, input: UpdateBranchBody) {
-  await getBranchById(id);
-  if (input.slug) {
-    const conflict = await prisma.branch.findFirst({ where: { slug: input.slug, NOT: { id } } });
-    if (conflict) throw AppError.conflict("Branch slug is already taken");
-  }
-  return prisma.branch.update({ where: { id }, data: input });
+export async function updateVendorBranch(vendorId: string, branchId: string, input: BranchUpdate, actor: AuditActor) {
+  await ownBranch(vendorId, branchId);
+  return prisma.$transaction(async (tx) => {
+    const branch = await tx.branch.update({ where: { id: branchId }, data: input });
+    await audit(tx, actor, { action: "branch.update", entity: "branch", entityId: branchId, vendorId, data: input });
+    return branch;
+  });
 }
 
-export async function deleteBranch(id: string) {
-  const branch = await getBranchById(id);
-  // If there are any orders, deactivate instead of hard-delete.
-  const orderCount = await prisma.order.count({ where: { branchId: id } });
-  if (orderCount > 0) {
-    return prisma.branch.update({ where: { id }, data: { isActive: false } });
-  }
-  await prisma.branch.delete({ where: { id } });
-  return branch;
-}
-
-// ─── Online/Offline toggle ────────────────────────────────────────────────
-
-/**
- * Sets the operational status of a branch and writes an audit log row
- * in the same transaction.
- */
-export async function setBranchOnlineStatus(
-  branchId: string,
-  isOnline: boolean,
-  reason: string | undefined,
-  actorId: string,
-) {
-  const branch = await prisma.$transaction(async (tx) => {
-    await getBranchById(branchId); // validate existence
-    const updated = await tx.branch.update({
+/** The vendor's working switch. Closed shops stay visible to customers but take no orders. */
+export async function setBranchOnline(vendorId: string, branchId: string, input: SetOnlineInput, actor: AuditActor) {
+  await ownBranch(vendorId, branchId);
+  return prisma.$transaction(async (tx) => {
+    const branch = await tx.branch.update({
       where: { id: branchId },
-      data: { isOnline },
+      data: { isOnline: input.isOnline, ...(input.offlineMessage !== undefined ? { offlineMessage: input.offlineMessage } : {}) },
     });
-    await tx.branchStatusLog.create({
-      data: { branchId, isOnline, reason, actorId },
-    });
-    return updated;
-  });
-
-  // If taking branch offline, log a warning for in-flight orders (notifications sent in Phase 6).
-  if (!isOnline) {
-    const affectedCount = await prisma.order.count({
-      where: { branchId, status: { in: ["PLACED", "CONFIRMED", "PACKED"] } },
-    });
-    if (affectedCount > 0) {
-      logger.warn({ branchId, affectedCount }, "Branch taken offline with in-flight orders");
-    }
-  }
-
-  return branch;
-}
-
-// ─── Order resolution ─────────────────────────────────────────────────────
-
-/**
- * Resolves the branch that should fulfil an order.
- *
- * Priority:
- *   1. The customer's preferred branch — if it is online and active.
- *   2. The nearest online branch to the delivery address.
- *   3. Any online branch (last resort; a warning is logged).
- *
- * Throws SERVICE_UNAVAILABLE (503) if no branch is online at all.
- */
-export async function resolveBranchForOrder(
-  preferredBranchId: string | undefined,
-  lat: number,
-  lng: number,
-): Promise<string> {
-  // 1. Preferred branch (if valid)
-  if (preferredBranchId) {
-    const preferred = await prisma.branch.findUnique({ where: { id: preferredBranchId } });
-    if (preferred?.isActive && preferred.isOnline) {
-      return preferred.id;
-    }
-    // Preferred branch is offline — fall through to geo-detect.
-    logger.info({ preferredBranchId }, "Preferred branch offline; auto-resolving to nearest online branch");
-  }
-
-  // 2. Nearest online branch to the coordinates.
-  const nearest = await findNearestBranch(lat, lng);
-  return nearest.id;
-}
-
-// ─── Rider assignment ─────────────────────────────────────────────────────
-
-export async function getBranchRiders(branchId: string) {
-  await getBranchById(branchId);
-  return prisma.rider.findMany({
-    where: { branches: { some: { branchId } } },
-    orderBy: { name: "asc" },
+    await tx.branchStatusLog.create({ data: { branchId, isOnline: input.isOnline, reason: input.reason, actorId: actor.id } });
+    await audit(tx, actor, { action: input.isOnline ? "branch.online" : "branch.offline", entity: "branch", entityId: branchId, vendorId, data: { reason: input.reason ?? null } });
+    return branch;
   });
 }
 
-export async function assignRiderToBranch(branchId: string, riderId: string) {
-  await getBranchById(branchId);
-  const rider = await prisma.rider.findUnique({ where: { id: riderId } });
-  if (!rider) throw AppError.notFound("Rider");
+// ───────────────────────── admin (read-only) ─────────────────────────
 
-  return prisma.branchRider.upsert({
-    where: { branchId_riderId: { branchId, riderId } },
-    update: {},
-    create: { branchId, riderId },
+export async function listAllBranches() {
+  const branches = await prisma.branch.findMany({
+    orderBy: [{ vendor: { shopName: "asc" } }, { name: "asc" }],
+    select: { ...offerBranchSelect, city: true, address: true, _count: { select: { branchStock: true, orders: true } } },
   });
+  return branches.map(({ _count, ...branch }) => ({ ...branch, ...describeShop(branch, null), listingCount: _count.branchStock, orderCount: _count.orders }));
 }
 
-export async function unassignRiderFromBranch(branchId: string, riderId: string) {
-  await getBranchById(branchId);
-  const existing = await prisma.branchRider.findUnique({
-    where: { branchId_riderId: { branchId, riderId } },
-  });
-  if (!existing) throw AppError.notFound("Rider assignment");
-  await prisma.branchRider.delete({ where: { branchId_riderId: { branchId, riderId } } });
+// ───────────────────────── public ─────────────────────────
+
+/** Shops near a point, open ones first, for "Shops near you" and the location picker. */
+export async function nearbyShops(point: Point | null, limit: number) {
+  const branches = await prisma.branch.findMany({ where: { isActive: true, vendor: { status: "APPROVED" } }, select: offerBranchSelect });
+  return branches
+    .map((branch) => describeShop(branch, point))
+    .filter((shop) => shop.deliverable)
+    .sort((a, b) => Number(b.isOpen) - Number(a.isOpen) || (a.distanceKm ?? 0) - (b.distanceKm ?? 0))
+    .slice(0, limit);
 }

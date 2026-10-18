@@ -74,6 +74,33 @@ async function deliver({ channel, recipientType, recipient, template, rendered, 
   }
 }
 
+export type Notice = {
+  recipientType: RecipientType;
+  to: string | null | undefined;
+  template: string;
+  subject: string;
+  heading: string;
+  lines: (string | null | undefined)[];
+  orderId?: string;
+};
+
+/** Emails a branded notice and records it in the delivery log; never throws. */
+export async function sendNotice(notice: Notice) {
+  try {
+    const settings = await getSettings();
+    await deliver({
+      channel: "EMAIL",
+      recipientType: notice.recipientType,
+      recipient: notice.to,
+      template: notice.template,
+      rendered: templates.notice(settings.storeName, notice.subject, notice.heading, notice.lines),
+      orderId: notice.orderId,
+    });
+  } catch (error) {
+    logger.error({ err: error, template: notice.template }, "Notice failed");
+  }
+}
+
 export async function createInAppNotification(
   userId: string,
   type: NotificationType,

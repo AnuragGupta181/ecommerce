@@ -30,7 +30,12 @@ async function issueSession(user: User, userAgent?: string) {
   });
   return {
     user: toPublicUser(user),
-    accessToken: signAccessToken({ sub: user.id, role: user.role }),
+    accessToken: signAccessToken({
+      sub: user.id,
+      role: user.role,
+      vid: user.vendorId ?? undefined,
+      sa: user.isSuperAdmin || undefined,
+    }),
     refreshToken,
   };
 }

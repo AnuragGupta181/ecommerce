@@ -10,6 +10,13 @@ export function requireUser(req: Request) {
   return req.auth;
 }
 
+/** The vendor id of a VENDOR principal (vendor routes are guarded by `vendorOnly`). */
+export function requireVendorId(req: Request): string {
+  const vendorId = req.auth?.vendorId;
+  if (!vendorId) throw AppError.forbidden("This login is not linked to a shop");
+  return vendorId;
+}
+
 export function ok<T>(data: T, meta?: Record<string, unknown>) {
   return meta ? { data, meta } : { data };
 }

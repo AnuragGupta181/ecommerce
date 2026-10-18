@@ -1,95 +1,49 @@
 import { Router, type Request, type Response } from "express";
-import { ok, requireUser } from "../../lib/http.js";
-import { adminOnly, optionalAuth } from "../../middleware/auth.js";
-import {
-  AssignRiderBody,
-  BranchByDistanceQuery,
-  BranchIdParam,
-  CreateBranchBody,
-  NearestBranchQuery,
-  RiderIdParam,
-  SetOnlineBody,
-  UpdateBranchBody,
-} from "./branch.schema.js";
+import { idParam, ok, requireUser, requireVendorId } from "../../lib/http.js";
+import { adminOnly, optionalAuth, vendorOnly } from "../../middleware/auth.js";
+import { requestPoint } from "../geo/geo.js";
+import { branchInputSchema, branchUpdateSchema, nearbyQuery, setOnlineSchema } from "./branch.schema.js";
 import * as service from "./branch.service.js";
-import { presentBranch, presentBranchWithDistance } from "./branch.presenter.js";
+import { tradingForWrites } from "../vendors/vendor-guard.js";
 
-// ─── Public router (/api/v1/branches) ─────────────────────────────────────
+const actorOf = (req: Request) => {
+  const auth = requireUser(req);
+  return { id: auth.userId, role: auth.role, vendorId: auth.vendorId };
+};
 
+/** Public: /branches/nearby (send X-Location) */
 export const branchesRouter = Router();
-branchesRouter.use(optionalAuth);
-
-// NOTE: /nearest must come before /:id so the literal segment matches first.
-branchesRouter.get("/nearest", async (req: Request, res: Response) => {
-  const { lat, lng } = NearestBranchQuery.parse(req.query);
-  const branch = await service.findNearestBranch(lat, lng);
-  res.json(ok(presentBranchWithDistance(branch)));
+branchesRouter.get("/nearby", optionalAuth, async (req: Request, res: Response) => {
+  const { limit } = nearbyQuery.parse(req.query);
+  res.json(ok(await service.nearbyShops(requestPoint(req), limit)));
 });
 
-branchesRouter.get("/", async (req: Request, res: Response) => {
-  const { lat, lng, limit } = BranchByDistanceQuery.parse(req.query);
-  const branches = await service.listBranchesByDistance(lat, lng, limit);
-  res.json(ok(branches.map(presentBranchWithDistance)));
+/** Vendor portal: /vendor/branches */
+export const vendorBranchesRouter = Router();
+vendorBranchesRouter.use(vendorOnly);
+vendorBranchesRouter.use(tradingForWrites);
+
+vendorBranchesRouter.get("/", async (req: Request, res: Response) => {
+  res.json(ok(await service.listVendorBranches(requireVendorId(req))));
 });
 
-branchesRouter.get("/:id", async (req: Request, res: Response) => {
-  const { id } = BranchIdParam.parse(req.params);
-  const branch = await service.getBranchById(id);
-  res.json(ok(presentBranch(branch)));
+vendorBranchesRouter.post("/", async (req: Request, res: Response) => {
+  res.status(201).json(ok(await service.createVendorBranch(requireVendorId(req), branchInputSchema.parse(req.body), actorOf(req))));
 });
 
-// ─── Admin router (/api/v1/admin/branches) ────────────────────────────────
+vendorBranchesRouter.patch("/:id", async (req: Request, res: Response) => {
+  const { id } = idParam.parse(req.params);
+  res.json(ok(await service.updateVendorBranch(requireVendorId(req), id, branchUpdateSchema.parse(req.body), actorOf(req))));
+});
 
+vendorBranchesRouter.patch("/:id/online", async (req: Request, res: Response) => {
+  const { id } = idParam.parse(req.params);
+  res.json(ok(await service.setBranchOnline(requireVendorId(req), id, setOnlineSchema.parse(req.body), actorOf(req))));
+});
+
+/** Admin: /admin/branches (read-only; shops are run by their vendors) */
 export const adminBranchesRouter = Router();
 adminBranchesRouter.use(adminOnly);
-
 adminBranchesRouter.get("/", async (_req: Request, res: Response) => {
-  res.json(ok(await service.listBranchesAdmin()));
-});
-
-adminBranchesRouter.post("/", async (req: Request, res: Response) => {
-  const branch = await service.createBranch(CreateBranchBody.parse(req.body));
-  res.status(201).json(ok(branch));
-});
-
-adminBranchesRouter.get("/:id", async (req: Request, res: Response) => {
-  const { id } = BranchIdParam.parse(req.params);
-  res.json(ok(presentBranch(await service.getBranchById(id))));
-});
-
-adminBranchesRouter.patch("/:id", async (req: Request, res: Response) => {
-  const { id } = BranchIdParam.parse(req.params);
-  res.json(ok(await service.updateBranch(id, UpdateBranchBody.parse(req.body))));
-});
-
-adminBranchesRouter.delete("/:id", async (req: Request, res: Response) => {
-  const { id } = BranchIdParam.parse(req.params);
-  await service.deleteBranch(id);
-  res.status(204).end();
-});
-
-adminBranchesRouter.patch("/:id/online", async (req: Request, res: Response) => {
-  const { id } = BranchIdParam.parse(req.params);
-  const { isOnline, reason } = SetOnlineBody.parse(req.body);
-  const actorId = requireUser(req).userId;
-  res.json(ok(presentBranch(await service.setBranchOnlineStatus(id, isOnline, reason, actorId))));
-});
-
-// Rider assignment
-adminBranchesRouter.get("/:id/riders", async (req: Request, res: Response) => {
-  const { id } = BranchIdParam.parse(req.params);
-  res.json(ok(await service.getBranchRiders(id)));
-});
-
-adminBranchesRouter.post("/:id/riders", async (req: Request, res: Response) => {
-  const { id } = BranchIdParam.parse(req.params);
-  const { riderId } = AssignRiderBody.parse(req.body);
-  res.status(201).json(ok(await service.assignRiderToBranch(id, riderId)));
-});
-
-adminBranchesRouter.delete("/:id/riders/:riderId", async (req: Request, res: Response) => {
-  const { id } = BranchIdParam.parse(req.params);
-  const { riderId } = RiderIdParam.parse(req.params);
-  await service.unassignRiderFromBranch(id, riderId);
-  res.status(204).end();
+  res.json(ok(await service.listAllBranches()));
 });

@@ -1,5 +1,6 @@
 import { listLiveBanners } from "../banners/banners.service.js";
 import { getCategoryTree } from "../categories/categories.service.js";
+import type { Point } from "../geo/geo.js";
 import { productRail } from "../products/products.service.js";
 
 const UNDER_PRICE = 49_900;
@@ -9,7 +10,8 @@ const NEW_ARRIVAL_DAYS = 30;
  * Everything the home screen needs in one round trip.
  * Each rail carries the listing query that its "See all" button opens.
  */
-export async function getHomeFeed(userId?: string) {
+export async function getHomeFeed(userId?: string, point: Point | null = null) {
+  const rail = (where: Parameters<typeof productRail>[0], orderBy: Parameters<typeof productRail>[1]) => productRail(where, orderBy, userId, 10, point);
   const newSince = new Date(Date.now() - NEW_ARRIVAL_DAYS * 24 * 60 * 60 * 1000);
 
   const groceryFilter = {
@@ -32,13 +34,13 @@ export async function getHomeFeed(userId?: string) {
   const [banners, categories, freshGroceries, medicinesWellness, deals, bestsellers, topRated, newArrivals, budget] = await Promise.all([
     listLiveBanners(),
     getCategoryTree(),
-    productRail(groceryFilter, [{ soldCount: "desc" }, { ratingAvg: "desc" }], userId),
-    productRail(medicineFilter, [{ soldCount: "desc" }, { ratingAvg: "desc" }], userId),
-    productRail({ discountPercent: { gte: 20 } }, [{ discountPercent: "desc" }, { soldCount: "desc" }], userId),
-    productRail({}, [{ soldCount: "desc" }], userId),
-    productRail({ ratingCount: { gt: 0 } }, [{ ratingAvg: "desc" }, { ratingCount: "desc" }], userId),
-    productRail({ createdAt: { gte: newSince } }, [{ createdAt: "desc" }], userId),
-    productRail({ minPrice: { lte: UNDER_PRICE } }, [{ soldCount: "desc" }], userId),
+    rail(groceryFilter, [{ soldCount: "desc" }, { ratingAvg: "desc" }]),
+    rail(medicineFilter, [{ soldCount: "desc" }, { ratingAvg: "desc" }]),
+    rail({ discountPercent: { gte: 20 } }, [{ discountPercent: "desc" }, { soldCount: "desc" }]),
+    rail({}, [{ soldCount: "desc" }]),
+    rail({ ratingCount: { gt: 0 } }, [{ ratingAvg: "desc" }, { ratingCount: "desc" }]),
+    rail({ createdAt: { gte: newSince } }, [{ createdAt: "desc" }]),
+    rail({ minPrice: { lte: UNDER_PRICE } }, [{ soldCount: "desc" }]),
   ]);
 
   const rails = [

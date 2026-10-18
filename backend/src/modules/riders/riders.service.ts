@@ -2,9 +2,19 @@ import type { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
 import { pageMeta, toSkipTake } from "../../lib/pagination.js";
 import { toE164 } from "../../lib/phone.js";
+import { randomToken } from "../../lib/crypto.js";
 import { prisma } from "../../lib/prisma.js";
 import { ACTIVE_STATUSES } from "../orders/order-status.js";
 import type { RiderInput, RiderListQuery, RiderUpdate } from "./riders.schema.js";
+
+/** Vendor portal passes its vendor id; the admin sees every rider. */
+export type RiderScope = { vendorId?: string };
+
+async function scopedRider(id: string, scope: RiderScope) {
+  const rider = await prisma.rider.findFirst({ where: { id, ...(scope.vendorId ? { vendorId: scope.vendorId } : {}) } });
+  if (!rider) throw AppError.notFound("Rider");
+  return rider;
+}
 
 function normalisePhones<T extends { phone?: string; whatsapp?: string | null }>(input: T): T {
   return {
@@ -14,8 +24,10 @@ function normalisePhones<T extends { phone?: string; whatsapp?: string | null }>
   };
 }
 
-export async function listRiders(query: RiderListQuery) {
+export async function listRiders(query: RiderListQuery, scope: RiderScope = {}) {
   const and: Prisma.RiderWhereInput[] = [];
+  if (scope.vendorId) and.push({ vendorId: scope.vendorId });
+  if (query.vendorId) and.push({ vendorId: query.vendorId });
   if (query.q) {
     and.push({
       OR: [
@@ -29,7 +41,7 @@ export async function listRiders(query: RiderListQuery) {
 
   const where: Prisma.RiderWhereInput = { AND: and };
   const [rows, total] = await Promise.all([
-    prisma.rider.findMany({ where, orderBy: [{ isActive: "desc" }, { name: "asc" }], ...toSkipTake(query) }),
+    prisma.rider.findMany({ where, orderBy: [{ isActive: "desc" }, { name: "asc" }], ...toSkipTake(query), include: { vendor: { select: { id: true, shopName: true } } } }),
     prisma.rider.count({ where }),
   ]);
 
@@ -46,7 +58,8 @@ export async function listRiders(query: RiderListQuery) {
   };
 }
 
-export async function getRider(id: string) {
+export async function getRider(id: string, scope: RiderScope = {}) {
+  await scopedRider(id, scope);
   const rider = await prisma.rider.findUnique({
     where: { id },
     include: {
@@ -65,16 +78,26 @@ export async function getRider(id: string) {
   return { ...rider, stats: { delivered, active } };
 }
 
-export function createRider(input: RiderInput) {
-  return prisma.rider.create({ data: normalisePhones(input) });
+export function createRider(input: RiderInput, scope: RiderScope = {}) {
+  return prisma.rider.create({ data: { ...normalisePhones(input), vendorId: scope.vendorId ?? input.vendorId ?? null, linkToken: randomToken() } });
 }
 
-export function updateRider(id: string, input: RiderUpdate) {
-  return prisma.rider.update({ where: { id }, data: normalisePhones(input) });
+export async function updateRider(id: string, input: RiderUpdate, scope: RiderScope = {}) {
+  await scopedRider(id, scope);
+  // A vendor cannot move its riders to another shop.
+  const { vendorId, ...rest } = input;
+  return prisma.rider.update({ where: { id }, data: { ...normalisePhones(rest), ...(scope.vendorId ? {} : { vendorId }) } });
+}
+
+/** New private schedule link; the old one stops working. */
+export async function rotateRiderLink(id: string, scope: RiderScope = {}) {
+  await scopedRider(id, scope);
+  return prisma.rider.update({ where: { id }, data: { linkToken: randomToken() }, select: { id: true, linkToken: true } });
 }
 
 /** Riders with delivery history are deactivated instead of deleted. */
-export async function deleteRider(id: string) {
+export async function deleteRider(id: string, scope: RiderScope = {}) {
+  await scopedRider(id, scope);
   const orders = await prisma.order.count({ where: { riderId: id } });
   if (orders > 0) {
     await prisma.rider.update({ where: { id }, data: { isActive: false } });

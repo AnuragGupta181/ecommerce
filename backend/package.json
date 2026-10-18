@@ -8,19 +8,19 @@
   },
   "scripts": {
     "postinstall": "prisma generate --no-hints",
-    "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' tsx watch --env-file=.env src/server.ts",
+    "dev": "tsx watch --env-file=.env src/server.ts",
     "build": "prisma generate --no-hints && tsc -p tsconfig.build.json",
-    "start": "NODE_OPTIONS='--dns-result-order=ipv4first' node dist/server.js",
+    "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:int": "vitest run tests/integration",
     "db:generate": "prisma generate --no-hints",
-    "db:migrate": "NODE_OPTIONS='--dns-result-order=ipv4first' prisma migrate dev",
-    "db:deploy": "NODE_OPTIONS='--dns-result-order=ipv4first' prisma migrate deploy",
-    "db:seed": "NODE_OPTIONS='--dns-result-order=ipv4first' tsx --env-file=.env prisma/seed.ts",
-    "db:studio": "NODE_OPTIONS='--dns-result-order=ipv4first' prisma studio"
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx --env-file=.env prisma/seed.ts",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

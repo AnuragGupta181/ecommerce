@@ -6,12 +6,17 @@ import { prisma } from "../../lib/prisma.js";
 import { categoryWithDescendantIds } from "../categories/categories.service.js";
 import { listPublicCoupons } from "../coupons/coupons.service.js";
 import { wishlistedIds } from "../wishlist/wishlist.service.js";
-import { productCardSelect, toProductCard } from "./products.presenter.js";
+import type { Point } from "../geo/geo.js";
+import { loadOffers, rankOffers, visibleListingWhere } from "../listings/offers.service.js";
+import { productCardSelect, toProductCards } from "./products.presenter.js";
 import type { ProductListQuery } from "./products.schema.js";
 import { normalizeSearchTerm } from "./search-term.js";
 
+const sellable: Prisma.ProductWhereInput = { variants: { some: { isActive: true, branchStock: { some: visibleListingWhere } } } };
+
 async function buildWhere(query: ProductListQuery): Promise<Prisma.ProductWhereInput> {
-  const and: Prisma.ProductWhereInput[] = [{ isActive: true }];
+  // Only items some approved shop actually lists are browsable.
+  const and: Prisma.ProductWhereInput[] = [{ isActive: true }, sellable];
 
   if (query.category) and.push({ categoryId: { in: await categoryWithDescendantIds(query.category) } });
   if (query.brand?.length) and.push({ brand: { slug: { in: query.brand } } });
@@ -19,9 +24,10 @@ async function buildWhere(query: ProductListQuery): Promise<Prisma.ProductWhereI
   if (query.maxPrice !== undefined) and.push({ minPrice: { lte: query.maxPrice } });
   if (query.rating !== undefined) and.push({ ratingAvg: { gte: query.rating } });
   if (query.discount !== undefined) and.push({ discountPercent: { gte: query.discount } });
-  if (query.inStock) and.push({ variants: { some: { isActive: true, stock: { gt: 0 } } } });
+  if (query.inStock) and.push({ variants: { some: { isActive: true, branchStock: { some: { ...visibleListingWhere, stock: { gt: 0 } } } } } });
   if (query.featured) and.push({ isFeatured: true });
   if (query.ids?.length) and.push({ id: { in: query.ids } });
+  if (query.vendor) and.push({ variants: { some: { isActive: true, branchStock: { some: { ...visibleListingWhere, branch: { isActive: true, vendor: { slug: query.vendor, status: "APPROVED" } } } } } } });
 
   if (query.q) {
     const q = query.q;
@@ -66,7 +72,7 @@ function recordSearchTerm(q: string) {
     .catch((error: unknown) => logger.warn({ err: error }, "Failed to record search term"));
 }
 
-export async function listProducts(query: ProductListQuery, userId?: string) {
+export async function listProducts(query: ProductListQuery, userId?: string, point: Point | null = null) {
   const where = await buildWhere(query);
   const [rows, total] = await Promise.all([
     prisma.product.findMany({
@@ -80,7 +86,7 @@ export async function listProducts(query: ProductListQuery, userId?: string) {
   if (query.q && query.page === 1) recordSearchTerm(query.q);
 
   const wishlisted = await wishlistedIds(userId, rows.map((row) => row.id));
-  return { items: rows.map((row) => toProductCard(row, wishlisted)), meta: pageMeta(query, total) };
+  return { items: await toProductCards(rows, wishlisted, point, query.vendor), meta: pageMeta(query, total) };
 }
 
 /** Brands and price range available for the current category/search, for the filter sheet. */
@@ -103,7 +109,7 @@ export async function getFacets(query: ProductListQuery) {
   };
 }
 
-export async function getProductDetail(slug: string, userId?: string) {
+export async function getProductDetail(slug: string, userId?: string, point: Point | null = null) {
   const product = await prisma.product.findFirst({
     where: { slug, isActive: true },
     include: {
@@ -121,7 +127,7 @@ export async function getProductDetail(slug: string, userId?: string) {
   });
   if (!product) throw AppError.notFound("Product");
 
-  const [ratingGroups, topReviews, wishlisted, offers] = await Promise.all([
+  const [ratingGroups, topReviews, wishlisted, offers, shopOffers] = await Promise.all([
     prisma.review.groupBy({ by: ["rating"], where: { productId: product.id, isHidden: false }, _count: true }),
     prisma.review.findMany({
       where: { productId: product.id, isHidden: false },
@@ -131,7 +137,9 @@ export async function getProductDetail(slug: string, userId?: string) {
     }),
     wishlistedIds(userId, [product.id]),
     listPublicCoupons(3),
+    loadOffers(prisma, product.variants.map((variant) => variant.id), point),
   ]);
+  const best = rankOffers(product.variants.flatMap((variant) => shopOffers.get(variant.id) ?? []))[0];
 
   const breakdown = Object.fromEntries([5, 4, 3, 2, 1].map((star) => [star, 0])) as Record<number, number>;
   for (const group of ratingGroups) breakdown[group.rating] = group._count;
@@ -147,16 +155,23 @@ export async function getProductDetail(slug: string, userId?: string) {
     brand: product.brand,
     category: product.category,
     images: product.images,
-    variants: product.variants.map((variant) => ({
-      ...variant,
-      attributes: variant.attributes as Record<string, string>,
-      inStock: variant.stock > 0,
-      // Exact stock is only revealed when scarce ("Only 3 left").
-      stock: variant.stock <= 5 ? variant.stock : null,
-    })),
-    price: product.minPrice,
-    mrp: product.minMrp,
-    discountPercent: product.discountPercent,
+    variants: product.variants.map(({ stock: _catalogStock, ...variant }) => {
+      const variantOffers = shopOffers.get(variant.id) ?? [];
+      const pick = variantOffers[0];
+      return {
+        ...variant,
+        attributes: variant.attributes as Record<string, string>,
+        // Price and stock of the default shop for this variant; `offers` lists every shop.
+        price: pick?.price ?? variant.price,
+        mrp: pick?.mrp ?? variant.mrp,
+        inStock: variantOffers.some((offer) => offer.inStock),
+        stock: pick?.stockLeft ?? null,
+        offers: variantOffers,
+      };
+    }),
+    price: best?.price ?? product.minPrice,
+    mrp: best?.mrp ?? product.minMrp,
+    discountPercent: best?.discountPercent ?? product.discountPercent,
     rating: {
       average: Math.round(product.ratingAvg * 10) / 10,
       count: product.ratingCount,
@@ -168,17 +183,17 @@ export async function getProductDetail(slug: string, userId?: string) {
   };
 }
 
-export async function getSimilarProducts(slug: string, userId?: string) {
+export async function getSimilarProducts(slug: string, userId?: string, point: Point | null = null) {
   const product = await prisma.product.findUnique({ where: { slug }, select: { id: true, categoryId: true, brandId: true } });
   if (!product) throw AppError.notFound("Product");
   const rows = await prisma.product.findMany({
-    where: { isActive: true, id: { not: product.id }, categoryId: product.categoryId },
+    where: { isActive: true, id: { not: product.id }, categoryId: product.categoryId, ...sellable },
     orderBy: [{ soldCount: "desc" }, { ratingAvg: "desc" }],
     take: 12,
     select: productCardSelect,
   });
   const wishlisted = await wishlistedIds(userId, rows.map((row) => row.id));
-  return rows.map((row) => toProductCard(row, wishlisted));
+  return toProductCards(rows, wishlisted, point);
 }
 
 export async function getSuggestions(q: string) {
@@ -211,13 +226,14 @@ export async function productRail(
   orderBy: Prisma.ProductOrderByWithRelationInput[],
   userId?: string,
   take = 10,
+  point: Point | null = null,
 ) {
   const rows = await prisma.product.findMany({
-    where: { AND: [{ isActive: true }, where] },
+    where: { AND: [{ isActive: true }, sellable, where] },
     orderBy,
     take,
     select: productCardSelect,
   });
   const wishlisted = await wishlistedIds(userId, rows.map((row) => row.id));
-  return rows.map((row) => toProductCard(row, wishlisted));
+  return toProductCards(rows, wishlisted, point);
 }

@@ -24,6 +24,8 @@ export const productListQuery = paginationQuery.extend({
   inStock: boolQuery,
   featured: boolQuery,
   ids: csv,
+  /** Shop page: only this vendor's listings, priced at that vendor. */
+  vendor: z.string().trim().max(80).optional(),
   sort: z.enum(productSorts).default("relevance"),
 });
 

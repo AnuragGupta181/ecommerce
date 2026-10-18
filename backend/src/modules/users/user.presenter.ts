@@ -10,6 +10,9 @@ export function toPublicUser(user: User) {
     avatarUrl: user.avatarUrl,
     coinBalance: user.coinBalance,
     referralCode: user.referralCode,
+    vendorId: user.vendorId,
+    vendorRole: user.vendorRole,
+    isSuperAdmin: user.isSuperAdmin,
     createdAt: user.createdAt,
   };
 }

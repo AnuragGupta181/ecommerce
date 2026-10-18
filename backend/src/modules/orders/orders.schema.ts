@@ -25,9 +25,11 @@ const checkoutBase = {
     .min(1)
     .max(20)
     .optional(),
+  /** Shop for "buy now" lines; the cart's own shop is used otherwise. */
+  branchId: z.string().min(1).optional(),
 };
 
-export const quoteSchema = z.object(checkoutBase);
+export const quoteSchema = z.object({ ...checkoutBase, addressId: z.string().min(1).optional() });
 
 export const placeOrderSchema = z.object({
   ...checkoutBase,
@@ -47,6 +49,8 @@ export const adminOrderListQuery = paginationQuery.extend({
   q: z.string().trim().max(100).optional(),
   status: orderStatus.optional(),
   riderId: z.string().optional(),
+  vendorId: z.string().optional(),
+  branchId: z.string().optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
 });

@@ -89,7 +89,8 @@ async function syncVariants(db: Db, productId: string, variants: VariantInput[],
   }
 }
 
-export async function createProduct(input: ProductInput, actorId: string) {
+/** `extend` runs inside the same transaction (vendors attach their listings there). */
+export async function createProduct(input: ProductInput, actorId: string, extend?: (tx: Db, productId: string) => Promise<void>) {
   const slug = await uniqueSlug(input.slug ?? input.name, slugTaken());
   const { images, variants, ...fields } = input;
 
@@ -106,6 +107,7 @@ export async function createProduct(input: ProductInput, actorId: string) {
       await createVariant(tx, product.id, variant, index, actorId);
     }
     await recomputeProductSummary(tx, product.id);
+    if (extend) await extend(tx, product.id);
     return product.id;
   });
   return getProductAdmin(id);

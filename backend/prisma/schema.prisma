@@ -17,21 +17,32 @@ datasource db {
 enum Role {
   CUSTOMER
   ADMIN
+  VENDOR
+}
+
+enum VendorMemberRole {
+  OWNER
+  STAFF
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String            @id @default(cuid())
   name         String
-  email        String   @unique
-  phone        String?  @unique
+  email        String            @unique
+  phone        String?           @unique
   passwordHash String
-  role         Role     @default(CUSTOMER)
-  isBlocked    Boolean  @default(false)
+  role         Role              @default(CUSTOMER)
+  isBlocked    Boolean           @default(false)
   avatarUrl    String?
-  coinBalance  Int      @default(0)
-  referralCode String?  @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  coinBalance  Int               @default(0)
+  referralCode String?           @unique
+  /// Set for VENDOR users: the shop they work for.
+  vendorId     String?
+  vendorRole   VendorMemberRole?
+  /// The one ADMIN who can manage other admin accounts.
+  isSuperAdmin Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   refreshTokens     RefreshToken[]
   passwordResets    PasswordReset[]
@@ -45,8 +56,14 @@ model User {
   notifications     Notification[]
   referralsGiven    Referral[]         @relation("ReferrerReferrals")
   referralReceived  Referral?          @relation("RefereeReferral")
+  vendor            Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  subscriptions     Subscription[]
+  tickets           Ticket[]
+  conversations     Conversation[]
+  auditLogs         AuditLog[]
 
   @@index([role, createdAt])
+  @@index([vendorId])
 }
 
 model RefreshToken {
@@ -96,6 +113,9 @@ model Address {
   city      String
   state     String
   pincode   String
+  /// Delivery point; drives distance and delivery fee.
+  lat       Float?
+  lng       Float?
   type      AddressType @default(HOME)
   isDefault Boolean     @default(false)
   createdAt DateTime    @default(now())
@@ -139,18 +159,20 @@ model Brand {
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String   @default("")
-  highlights  String[]
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String   @default("")
+  highlights        String[]
   /// Array of { label: string, value: string }
-  specs       Json     @default("[]")
-  tags        String[]
-  categoryId  String
-  brandId     String?
-  isActive    Boolean  @default(true)
-  isFeatured  Boolean  @default(false)
+  specs             Json     @default("[]")
+  tags              String[]
+  categoryId        String
+  brandId           String?
+  isActive          Boolean  @default(true)
+  isFeatured        Boolean  @default(false)
+  /// Vendor that added this catalog product (null = added by the platform).
+  createdByVendorId String?
 
   // Denormalised for listing filters/sorting; kept in sync by the products service.
   minPrice        Int   @default(0)
@@ -163,13 +185,14 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  category      Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  brand         Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
-  images        ProductImage[]
-  variants      ProductVariant[]
-  reviews       Review[]
-  wishlistItems WishlistItem[]
-  orderItems    OrderItem[]
+  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  brand           Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  images          ProductImage[]
+  variants        ProductVariant[]
+  reviews         Review[]
+  wishlistItems   WishlistItem[]
+  orderItems      OrderItem[]
+  createdByVendor Vendor?          @relation(fields: [createdByVendorId], references: [id], onDelete: SetNull)
 
   @@index([categoryId, isActive])
   @@index([brandId])
@@ -224,6 +247,8 @@ enum StockMovementType {
   SALE
   CANCEL
   RETURN
+  SUBSCRIPTION
+  COUNTER_SALE
 }
 
 model StockMovement {
@@ -269,12 +294,15 @@ model CartItem {
   id        String   @id @default(cuid())
   userId    String
   variantId String
+  /// The shop this cart buys from; every line in a user's cart shares it.
+  branchId  String?
   quantity  Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  branch  Branch?        @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@unique([userId, variantId])
 }
@@ -413,6 +441,7 @@ model Order {
   userId        String
   /// Branch that fulfils this order (resolved at checkout; null for legacy orders).
   branchId      String?
+  vendorId      String?
   status        OrderStatus   @default(PLACED)
   paymentMethod PaymentMethod
   paymentStatus PaymentStatus @default(PENDING)
@@ -420,16 +449,24 @@ model Order {
   /// Snapshot of the delivery address at order time.
   shippingAddress Json
 
-  itemsMrp       Int
-  itemsTotal     Int
-  couponId       String?
-  couponCode     String?
-  couponDiscount Int     @default(0)
-  coinsUsed      Int     @default(0)
-  deliveryFee    Int     @default(0)
-  payable        Int
-  coinsToEarn    Int     @default(0)
-  coinsEarned    Int     @default(0)
+  itemsMrp         Int
+  itemsTotal       Int
+  couponId         String?
+  couponCode       String?
+  couponDiscount   Int     @default(0)
+  coinsUsed        Int     @default(0)
+  deliveryFee      Int     @default(0)
+  payable          Int
+  coinsToEarn      Int     @default(0)
+  coinsEarned      Int     @default(0)
+  /// Straight-line or road distance used for the delivery fee.
+  distanceKm       Float?
+  /// Commission snapshot (basis points of itemsTotal) and what the vendor is owed.
+  commissionBps    Int     @default(0)
+  commissionAmount Int     @default(0)
+  vendorEarning    Int     @default(0)
+  payoutId         String?
+  invoiceNumber    String? @unique
 
   riderId         String?
   riderAssignedAt DateTime?
@@ -447,7 +484,10 @@ model Order {
   coupon           Coupon?              @relation(fields: [couponId], references: [id], onDelete: SetNull)
   rider            Rider?               @relation(fields: [riderId], references: [id], onDelete: SetNull)
   branch           Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  vendor           Vendor?              @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  payout           Payout?              @relation(fields: [payoutId], references: [id], onDelete: SetNull)
   items            OrderItem[]
+  tickets          Ticket[]
   history          OrderStatusHistory[]
   couponRedemption CouponRedemption?
   coinTransactions CoinTransaction[]
@@ -458,6 +498,8 @@ model Order {
   @@index([status, createdAt])
   @@index([riderId])
   @@index([branchId])
+  @@index([vendorId, status, createdAt])
+  @@index([payoutId])
   @@index([createdAt])
 }
 
@@ -472,6 +514,8 @@ model OrderItem {
   imageUrl     String?
   mrp          Int
   price        Int
+  /// Vendor cost at order time, for profit reports (null when the vendor never set one).
+  costPrice    Int?
   quantity     Int
   lineTotal    Int
 
@@ -519,13 +563,19 @@ model Rider {
   address       String?
   notes         String?
   isActive      Boolean     @default(true)
+  vendorId      String?
+  /// Secret for the rider's no-login schedule page (shared over WhatsApp/email).
+  linkToken     String?     @unique
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  orders   Order[]
-  branches BranchRider[]
+  orders        Order[]
+  subscriptions Subscription[]
+  branches      BranchRider[]
+  vendor        Vendor?        @relation(fields: [vendorId], references: [id], onDelete: SetNull)
 
   @@index([isActive])
+  @@index([vendorId])
 }
 
 // ───────────────────────────── Engagement ─────────────────────────────
@@ -553,6 +603,9 @@ enum NotificationType {
   ORDER
   PROMO
   SYSTEM
+  SUBSCRIPTION
+  SUPPORT
+  CHAT
 }
 
 model Notification {
@@ -579,6 +632,7 @@ enum RecipientType {
   CUSTOMER
   RIDER
   ADMIN
+  VENDOR
 }
 
 enum DeliveryStatus {
@@ -658,34 +712,49 @@ model Settings {
 // ───────────────────────────── Branches ─────────────────────────────
 
 model Branch {
-  id               String   @id @default(cuid())
-  name             String
-  slug             String   @unique
-  address          String
-  city             String
-  state            String
-  pincode          String
+  id                String   @id @default(cuid())
+  vendorId          String
+  name              String
+  slug              String   @unique
+  address           String
+  city              String
+  state             String
+  pincode           String
   /// Decimal degrees (WGS-84)
-  lat              Float
+  lat               Float
   /// Decimal degrees (WGS-84)
-  lng              Float
-  deliveryRadiusKm Float    @default(5)
-  phone            String?
-  email            String?
-  isActive         Boolean  @default(true)
+  lng               Float
+  /// Furthest delivery, in km.
+  deliveryRadiusKm  Float    @default(5)
+  /// Delivery fee = max(minDeliveryFee, distanceKm × deliveryRatePerKm); paise.
+  deliveryRatePerKm Int      @default(1000)
+  minDeliveryFee    Int      @default(2000)
+  /// Free delivery at or above this items total (null = never free).
+  freeDeliveryAbove Int?
+  /// Opening hours in shop-local time, "HH:MM"; null = open all day.
+  opensAt           String?
+  closesAt          String?
+  phone             String?
+  email             String?
+  isActive          Boolean  @default(true)
   /// Operational on/off switch controlled by the admin.
-  isOnline         Boolean  @default(true)
+  isOnline          Boolean  @default(true)
   /// Shown to the customer when isOnline = false, e.g. "Back at 9 AM".
-  offlineMessage   String?
-  sortOrder        Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  offlineMessage    String?
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  branchStock BranchVariantStock[]
-  orders      Order[]
-  riders      BranchRider[]
-  statusLogs  BranchStatusLog[]
+  vendor        Vendor               @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  branchStock   BranchVariantStock[]
+  orders        Order[]
+  riders        BranchRider[]
+  statusLogs    BranchStatusLog[]
+  cartItems     CartItem[]
+  plans         SubscriptionPlan[]
+  subscriptions Subscription[]
 
+  @@index([vendorId])
   @@index([isActive, isOnline])
   @@index([lat, lng])
 }
@@ -694,15 +763,21 @@ model BranchVariantStock {
   id                String   @id @default(cuid())
   branchId          String
   variantId         String
+  /// The vendor's own selling price and MRP for this variant (paise).
+  price             Int
+  mrp               Int
+  /// What the vendor paid; private, used only for profit reports.
+  costPrice         Int?
   stock             Int      @default(0)
   lowStockThreshold Int      @default(5)
   /// Admin can hide a variant from this branch's catalog without removing stock.
   isAvailable       Boolean  @default(true)
   updatedAt         DateTime @updatedAt
 
-  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  variant        ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  branch         Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  variant        ProductVariant        @relation(fields: [variantId], references: [id], onDelete: Cascade)
   stockMovements BranchStockMovement[]
+  plans          SubscriptionPlan[]
 
   @@unique([branchId, variantId])
   @@index([branchId, stock])
@@ -710,17 +785,18 @@ model BranchVariantStock {
 }
 
 model BranchStockMovement {
-  id            String            @id @default(cuid())
-  branchStockId String
+  id                     String            @id @default(cuid())
+  branchStockId          String
   /// Reuses the global enum: IN | OUT | SET | SALE | CANCEL | RETURN
-  type          StockMovementType
+  type                   StockMovementType
   /// Signed delta; negative removes stock.
-  quantity      Int
-  stockAfter    Int
-  reason        String?
-  orderId       String?
-  createdById   String?
-  createdAt     DateTime          @default(now())
+  quantity               Int
+  stockAfter             Int
+  reason                 String?
+  orderId                String?
+  subscriptionDeliveryId String?
+  createdById            String?
+  createdAt              DateTime          @default(now())
 
   branchStock BranchVariantStock @relation(fields: [branchStockId], references: [id], onDelete: Cascade)
 
@@ -752,3 +828,452 @@ model BranchStatusLog {
   @@index([branchId, createdAt])
 }
 
+// ───────────────────────────── Vendors ─────────────────────────────
+
+enum VendorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+/// A shop owner's business on the platform. Customers buy from its branches.
+model Vendor {
+  id                   String       @id @default(cuid())
+  slug                 String       @unique
+  shopName             String
+  description          String       @default("")
+  logoUrl              String?
+  phone                String
+  email                String
+  address              String
+  gstin                String?
+  idProofType          String?
+  idProofNumber        String?
+  idProofUrl           String?
+  status               VendorStatus @default(PENDING)
+  rejectionReason      String?
+  /// Platform commission in basis points of itemsTotal (1000 = 10%).
+  commissionBps        Int          @default(1000)
+  /// Where payouts go: UPI id and/or bank details as free text.
+  payoutUpi            String?
+  payoutDetails        String?
+  /// Turns on the daily-needs / subscription section for this shop.
+  subscriptionsEnabled Boolean      @default(false)
+  approvedAt           DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  members       User[]
+  branches      Branch[]
+  orders        Order[]
+  riders        Rider[]
+  products      Product[]
+  plans         SubscriptionPlan[]
+  subscriptions Subscription[]
+  payouts       Payout[]
+  tickets       Ticket[]
+  conversations Conversation[]
+  counterSales  CounterSale[]
+
+  @@index([status])
+}
+
+// ───────────────────────────── Subscriptions ─────────────────────────────
+
+enum SubscriptionPeriod {
+  WEEKLY
+  MONTHLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+enum SubscriptionDeliveryStatus {
+  SCHEDULED
+  SKIPPED
+  DELIVERED
+  MISSED
+  CANCELLED
+}
+
+enum CollectionMethod {
+  CASH
+  UPI
+  OTHER
+}
+
+/// A recurring offer a vendor creates first, e.g. "Milk 1 L daily".
+model SubscriptionPlan {
+  id                  String   @id @default(cuid())
+  vendorId            String
+  branchId            String
+  listingId           String
+  name                String
+  description         String   @default("")
+  /// Units of the listing per delivery.
+  quantityPerDelivery Int      @default(1)
+  /// Delivery windows the customer can pick, e.g. "6-8 am".
+  slots               String[]
+  /// Max active subscribers (null = no limit).
+  capacity            Int?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  vendor        Vendor                  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  branch        Branch                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  listing       BranchVariantStock      @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  prices        SubscriptionPlanPrice[]
+  subscriptions Subscription[]
+
+  @@index([branchId, isActive])
+  @@index([vendorId])
+}
+
+enum DeliveryFeeMode {
+  /// deliveryFee is charged on every delivery.
+  PER_DELIVERY
+  /// deliveryFee is one flat charge for the whole period (0 = free delivery).
+  PER_PERIOD
+}
+
+enum SubscriptionPaymentPlan {
+  /// Whole period paid before the first delivery.
+  UPFRONT
+  /// Half before the start, half at the midpoint.
+  TWO_INSTALMENTS
+  /// Pay for what was delivered at the end of the period.
+  END_OF_PERIOD
+}
+
+/// Terms for one period of a plan; monthly is usually cheaper or has free delivery.
+model SubscriptionPlanPrice {
+  id               String             @id @default(cuid())
+  planId           String
+  period           SubscriptionPeriod
+  pricePerDelivery Int
+  deliveryFee      Int                @default(0)
+  deliveryFeeMode  DeliveryFeeMode    @default(PER_DELIVERY)
+
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, period])
+}
+
+model Subscription {
+  id               String                  @id @default(cuid())
+  number           String                  @unique
+  userId           String
+  planId           String
+  vendorId         String
+  branchId         String
+  /// Snapshot of the delivery address (with lat/lng).
+  shippingAddress  Json
+  period           SubscriptionPeriod
+  startDate        DateTime                @db.Date
+  endDate          DateTime                @db.Date
+  /// Delivery weekdays as a bitmask: Mon = 1, Tue = 2, ... Sun = 64.
+  weekdays         Int
+  slot             String?
+  quantity         Int
+  /// Terms locked when the customer subscribed.
+  pricePerDelivery Int
+  deliveryFee      Int
+  deliveryFeeMode  DeliveryFeeMode
+  paymentPlan      SubscriptionPaymentPlan @default(END_OF_PERIOD)
+  /// Delivery partner who does the daily drops.
+  riderId          String?
+  status           SubscriptionStatus      @default(ACTIVE)
+  cancelledAt      DateTime?
+  cancelReason     String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  plan        SubscriptionPlan         @relation(fields: [planId], references: [id], onDelete: Restrict)
+  vendor      Vendor                   @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  rider       Rider?                   @relation(fields: [riderId], references: [id], onDelete: SetNull)
+  deliveries  SubscriptionDelivery[]
+  pauses      SubscriptionPause[]
+  payments    SubscriptionPayment[]
+  instalments SubscriptionInstalment[]
+  tickets     Ticket[]
+
+  @@index([userId, createdAt])
+  @@index([vendorId, status])
+}
+
+/// One scheduled drop. Rows are created up front for the whole period.
+model SubscriptionDelivery {
+  id             String                     @id @default(cuid())
+  subscriptionId String
+  date           DateTime                   @db.Date
+  status         SubscriptionDeliveryStatus @default(SCHEDULED)
+  quantity       Int
+  goodsAmount    Int
+  deliveryFee    Int
+  deliveredAt    DateTime?
+  markedById     String?
+  note           String?
+  payoutId       String?
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  payout       Payout?      @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+
+  @@unique([subscriptionId, date])
+  @@index([date, status])
+  @@index([payoutId])
+}
+
+model SubscriptionPause {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  fromDate       DateTime @db.Date
+  toDate         DateTime @db.Date
+  createdAt      DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+}
+
+/// What the customer owes and by when, from the payment plan.
+model SubscriptionInstalment {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  sequence       Int
+  dueDate        DateTime @db.Date
+  amount         Int
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, sequence])
+}
+
+model SubscriptionPayment {
+  id             String           @id @default(cuid())
+  receiptNumber  String           @unique
+  subscriptionId String
+  amount         Int
+  method         CollectionMethod @default(CASH)
+  note           String?
+  recordedById   String?
+  paidAt         DateTime         @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, paidAt])
+}
+
+// ───────────────────────────── Payouts ─────────────────────────────
+
+enum PayoutStatus {
+  PENDING
+  PAID
+}
+
+/// Settles a vendor's delivered orders and subscription deliveries for a period.
+model Payout {
+  id               String       @id @default(cuid())
+  number           String       @unique
+  vendorId         String
+  periodFrom       DateTime
+  periodTo         DateTime
+  orderCount       Int
+  deliveryCount    Int
+  grossAmount      Int
+  commissionAmount Int
+  netAmount        Int
+  status           PayoutStatus @default(PENDING)
+  paidAt           DateTime?
+  reference        String?
+  note             String?
+  createdById      String?
+  createdAt        DateTime     @default(now())
+
+  vendor     Vendor                 @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  orders     Order[]
+  deliveries SubscriptionDelivery[]
+
+  @@index([vendorId, createdAt])
+}
+
+// ───────────────────────────── Support ─────────────────────────────
+
+enum TicketCategory {
+  ORDER_ISSUE
+  SUBSCRIPTION_ISSUE
+  APP_BUG
+  PAYMENT
+  ACCOUNT
+  VENDOR_COMPLAINT
+  OTHER
+}
+
+/// MINOR tickets go to the vendor (admin sees them too); MAJOR go to the admin only.
+enum TicketLevel {
+  MINOR
+  MAJOR
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum MessageAuthor {
+  CUSTOMER
+  VENDOR
+  ADMIN
+  SYSTEM
+}
+
+model Ticket {
+  id             String         @id @default(cuid())
+  number         String         @unique
+  userId         String
+  category       TicketCategory
+  level          TicketLevel
+  subject        String
+  status         TicketStatus   @default(OPEN)
+  orderId        String?
+  subscriptionId String?
+  /// Set only when the vendor may see the ticket (MINOR).
+  vendorId       String?
+  lastMessageAt  DateTime       @default(now())
+  resolvedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order        Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  subscription Subscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  vendor       Vendor?         @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  messages     TicketMessage[]
+
+  @@index([userId, createdAt])
+  @@index([vendorId, status])
+  @@index([level, status])
+}
+
+model TicketMessage {
+  id         String        @id @default(cuid())
+  ticketId   String
+  authorId   String?
+  authorRole MessageAuthor
+  body       String
+  createdAt  DateTime      @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+// ───────────────────────────── Chat ─────────────────────────────
+
+/// One thread per customer and vendor.
+model Conversation {
+  id             String   @id @default(cuid())
+  userId         String
+  vendorId       String
+  lastMessageAt  DateTime @default(now())
+  lastMessage    String   @default("")
+  customerUnread Int      @default(0)
+  vendorUnread   Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendor   Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@unique([userId, vendorId])
+  @@index([vendorId, lastMessageAt])
+}
+
+model ChatMessage {
+  id             String        @id @default(cuid())
+  conversationId String
+  senderId       String?
+  senderRole     MessageAuthor
+  body           String
+  orderId        String?
+  createdAt      DateTime      @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+// ───────────────────────────── Numbering ─────────────────────────────
+
+/// Sequential, human-readable document numbers (INV-2026-000123 ...), one row per series.
+model Counter {
+  key   String @id
+  value Int    @default(0)
+}
+
+// ───────────────────────────── Counter sales ─────────────────────────────
+
+/// A bill for an in-shop (offline) sale; stock is reduced the same way as online orders.
+model CounterSale {
+  id            String           @id @default(cuid())
+  number        String           @unique
+  vendorId      String
+  branchId      String
+  customerName  String?
+  customerPhone String?
+  total         Int
+  method        CollectionMethod @default(CASH)
+  createdById   String?
+  createdAt     DateTime         @default(now())
+
+  vendor Vendor            @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  items  CounterSaleItem[]
+
+  @@index([vendorId, createdAt])
+  @@index([branchId, createdAt])
+}
+
+model CounterSaleItem {
+  id           String @id @default(cuid())
+  saleId       String
+  listingId    String
+  productName  String
+  variantLabel String
+  price        Int
+  costPrice    Int?
+  quantity     Int
+  lineTotal    Int
+
+  sale CounterSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+}
+
+// ───────────────────────────── Audit ─────────────────────────────
+
+/// Who did what, for the super admin. Written by services, never edited.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actorRole Role?
+  vendorId  String?
+  action    String
+  entity    String
+  entityId  String?
+  data      Json?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([vendorId, createdAt])
+  @@index([actorId, createdAt])
+}

@@ -30,6 +30,11 @@ export type PricingInput = {
   coinBalance: number;
   useCoins: boolean;
   settings: PricingSettings;
+  /**
+   * The shop's distance-based fee (see delivery.ts). When given it replaces the store-wide
+   * flat fee; `freeAbove` is the shop's own free-delivery threshold.
+   */
+  delivery?: { fee: number; freeAbove: number | null } | null;
 };
 
 export type PriceSummary = {
@@ -57,7 +62,7 @@ export function couponDiscountFor(coupon: PricingCoupon, itemsTotal: number): nu
   return Math.max(0, Math.min(capped, itemsTotal));
 }
 
-export function calculatePricing({ lines, coupon, coinBalance, useCoins, settings }: PricingInput): PriceSummary {
+export function calculatePricing({ lines, coupon, coinBalance, useCoins, settings, delivery }: PricingInput): PriceSummary {
   const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
   const itemsMrp = lines.reduce((sum, line) => sum + line.mrp * line.quantity, 0);
   const itemsTotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
@@ -82,9 +87,11 @@ export function calculatePricing({ lines, coupon, coinBalance, useCoins, setting
   const coinsUsed = useCoins ? coinsRedeemable : 0;
   const coinsDiscount = coinsUsed * PAISE_PER_COIN;
 
-  const qualifiesForFreeDelivery = afterCoupon >= settings.freeDeliveryThreshold;
-  const deliveryFee = itemCount === 0 || qualifiesForFreeDelivery ? 0 : settings.deliveryFee;
-  const amountForFreeDelivery = itemCount === 0 || qualifiesForFreeDelivery ? 0 : settings.freeDeliveryThreshold - afterCoupon;
+  const baseFee = delivery ? delivery.fee : settings.deliveryFee;
+  const freeAbove = delivery ? delivery.freeAbove : settings.freeDeliveryThreshold;
+  const qualifiesForFreeDelivery = freeAbove !== null && afterCoupon >= freeAbove;
+  const deliveryFee = itemCount === 0 || qualifiesForFreeDelivery ? 0 : baseFee;
+  const amountForFreeDelivery = itemCount === 0 || qualifiesForFreeDelivery || freeAbove === null ? 0 : freeAbove - afterCoupon;
 
   const goodsPayable = afterCoupon - coinsDiscount;
   const payable = goodsPayable + deliveryFee;

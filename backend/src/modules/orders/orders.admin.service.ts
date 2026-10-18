@@ -10,8 +10,14 @@ import { ORDER_TRANSITIONS, RIDER_ASSIGNABLE } from "./order-status.js";
 import { transitionOrder, type Actor } from "./order-transitions.js";
 import type { AdminOrderListQuery } from "./orders.schema.js";
 
-export async function listOrdersAdmin(query: AdminOrderListQuery) {
+/** Vendor portal calls pass their vendor id; admin calls pass nothing and see every shop. */
+export type OrderScope = { vendorId?: string };
+
+export async function listOrdersAdmin(query: AdminOrderListQuery, scope: OrderScope = {}) {
   const and: Prisma.OrderWhereInput[] = [];
+  if (scope.vendorId) and.push({ vendorId: scope.vendorId });
+  if (query.vendorId) and.push({ vendorId: query.vendorId });
+  if (query.branchId) and.push({ branchId: query.branchId });
   if (query.q) {
     const contains = { contains: query.q, mode: "insensitive" as const };
     and.push({
@@ -44,6 +50,8 @@ export async function listOrdersAdmin(query: AdminOrderListQuery) {
         createdAt: true,
         user: { select: { id: true, name: true, phone: true } },
         rider: { select: { id: true, name: true } },
+        vendor: { select: { id: true, shopName: true } },
+        branch: { select: { id: true, name: true } },
         _count: { select: { items: true } },
       },
     }),
@@ -55,18 +63,20 @@ export async function listOrdersAdmin(query: AdminOrderListQuery) {
   };
 }
 
-export async function orderStatusCounts() {
-  const groups = await prisma.order.groupBy({ by: ["status"], _count: true });
+export async function orderStatusCounts(scope: OrderScope = {}) {
+  const groups = await prisma.order.groupBy({ by: ["status"], where: scope.vendorId ? { vendorId: scope.vendorId } : undefined, _count: true });
   return Object.fromEntries(groups.map((group) => [group.status, group._count])) as Partial<Record<OrderStatus, number>>;
 }
 
-export async function getOrderAdmin(id: string) {
+export async function getOrderAdmin(id: string, scope: OrderScope = {}) {
   const [order, settings] = await Promise.all([
-    prisma.order.findUnique({
-      where: { id },
+    prisma.order.findFirst({
+      where: { id, ...(scope.vendorId ? { vendorId: scope.vendorId } : {}) },
       include: {
         user: { select: { id: true, name: true, email: true, phone: true } },
         rider: true,
+        vendor: { select: { id: true, shopName: true, phone: true, email: true } },
+        branch: { select: { id: true, name: true, address: true, lat: true, lng: true } },
         items: true,
         history: { orderBy: { createdAt: "asc" } },
         notificationLogs: { orderBy: { createdAt: "desc" }, take: 50 },
@@ -99,19 +109,30 @@ export async function getOrderAdmin(id: string) {
   };
 }
 
-export function updateOrderStatus(id: string, status: OrderStatus, note: string | undefined, actor: Actor) {
+/** 404 unless the order belongs to the scoped vendor. */
+async function assertInScope(id: string, scope: OrderScope) {
+  if (!scope.vendorId) return;
+  const owned = await prisma.order.count({ where: { id, vendorId: scope.vendorId } });
+  if (!owned) throw AppError.notFound("Order");
+}
+
+export async function updateOrderStatus(id: string, status: OrderStatus, note: string | undefined, actor: Actor, scope: OrderScope = {}) {
+  await assertInScope(id, scope);
   return transitionOrder(id, status, { actor, note, reason: status === "CANCELLED" || status === "RETURN_REJECTED" ? note : undefined });
 }
 
 /** Assigns (or reassigns) a registered, active rider and notifies customer, rider and admin. */
-export async function assignRider(orderId: string, riderId: string, note: string | undefined, actor: Actor) {
+export async function assignRider(orderId: string, riderId: string, note: string | undefined, actor: Actor, scope: OrderScope = {}) {
+  await assertInScope(orderId, scope);
   await prisma.$transaction(async (tx) => {
     const [order, rider] = await Promise.all([
-      tx.order.findUnique({ where: { id: orderId }, select: { status: true, riderId: true } }),
-      tx.rider.findUnique({ where: { id: riderId }, select: { name: true, phone: true, isActive: true } }),
+      tx.order.findUnique({ where: { id: orderId }, select: { status: true, riderId: true, vendorId: true } }),
+      tx.rider.findUnique({ where: { id: riderId }, select: { name: true, phone: true, isActive: true, vendorId: true } }),
     ]);
     if (!order) throw AppError.notFound("Order");
     if (!rider) throw AppError.badRequest("Rider not found. Register the rider first.");
+    // A shop's orders go out with that shop's own delivery partners.
+    if (order.vendorId && rider.vendorId && rider.vendorId !== order.vendorId) throw AppError.badRequest("This delivery partner works for another shop");
     if (!rider.isActive) throw AppError.badRequest("This rider is inactive");
     if (!RIDER_ASSIGNABLE.includes(order.status)) {
       throw new AppError("INVALID_TRANSITION", `A rider cannot be assigned to a ${order.status} order`);
@@ -138,15 +159,16 @@ export async function assignRider(orderId: string, riderId: string, note: string
   });
 
   inBackground(() => notifyRiderAssigned(orderId));
-  return getOrderAdmin(orderId);
+  return getOrderAdmin(orderId, scope);
 }
 
-export async function resendRiderNotifications(orderId: string) {
+export async function resendRiderNotifications(orderId: string, scope: OrderScope = {}) {
+  await assertInScope(orderId, scope);
   const order = await prisma.order.findUnique({ where: { id: orderId }, select: { riderId: true } });
   if (!order) throw AppError.notFound("Order");
   if (!order.riderId) throw AppError.badRequest("Assign a rider first");
   await notifyRiderAssigned(orderId);
-  return getOrderAdmin(orderId);
+  return getOrderAdmin(orderId, scope);
 }
 
 export function updateAdminNote(orderId: string, adminNote: string) {

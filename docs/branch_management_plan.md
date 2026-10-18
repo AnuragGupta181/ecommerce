@@ -1,3 +1,5 @@
+> **Superseded** by [MARKETPLACE.md](MARKETPLACE.md) (vendors own branches). The branch tables described here are reused; track work in [PLAN.md](PLAN.md) Phases 8–14.
+
 # Branch & Vendor Management System — Implementation Plan
 
 > **Scope:** Production-grade multi-branch system for Haat.

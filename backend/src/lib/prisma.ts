@@ -4,7 +4,9 @@ import { env } from "../config/env.js";
 import { RetryingPool } from "./db-pool.js";
 import { PrismaClient, type Prisma } from "../generated/prisma/client.js";
 
-dns.setDefaultResultOrder("ipv4first");
+// Neon resolves to IPv6 and IPv4, and some networks silently drop one family (IPv4 on one dev
+// machine, IPv6 on another). pg connects to the first address only, so the order is a setting.
+if (env.DB_DNS_ORDER) dns.setDefaultResultOrder(env.DB_DNS_ORDER);
 
 // Honour `?schema=` in the URL (used to isolate the integration-test schema).
 const schema = new URL(env.DATABASE_URL).searchParams.get("schema") ?? undefined;

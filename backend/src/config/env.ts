@@ -25,6 +25,8 @@ const envSchema = z.object({
     ),
 
   DATABASE_URL: z.string().min(1),
+  /** Set to ipv4first on networks where IPv6 to the database hangs (ipv6first for the reverse). */
+  DB_DNS_ORDER: z.enum(["ipv4first", "ipv6first", "verbatim"]).optional(),
 
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
@@ -47,6 +49,13 @@ const envSchema = z.object({
 
   UPLOAD_DIR: z.string().default("uploads"),
   UPLOAD_MAX_MB: z.coerce.number().positive().default(5),
+  BLOB_READ_WRITE_TOKEN: optionalString,
+
+  /** Straight-line km × this ≈ road km, used when no routing key is set. */
+  ROAD_FACTOR: z.coerce.number().min(1).max(3).default(1.3),
+  ORS_API_KEY: optionalString,
+  CRON_SECRET: optionalString,
+  PORTAL_URL: z.url().default("http://localhost:3000"),
 });
 
 export type Env = z.infer<typeof envSchema>;

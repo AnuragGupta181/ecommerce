@@ -14,6 +14,8 @@ export const riderInputSchema = z.object({
   address: z.string().trim().max(300).nullish(),
   notes: z.string().trim().max(500).nullish(),
   isActive: z.boolean().default(true),
+  /** Admin only; vendors always create riders for their own shop. */
+  vendorId: z.string().min(1).nullish(),
 });
 
 export const riderUpdateSchema = riderInputSchema.partial();
@@ -24,6 +26,7 @@ export const riderListQuery = paginationQuery.extend({
     .enum(["true", "false"])
     .optional()
     .transform((value) => (value === undefined ? undefined : value === "true")),
+  vendorId: z.string().optional(),
 });
 
 export type RiderInput = z.infer<typeof riderInputSchema>;

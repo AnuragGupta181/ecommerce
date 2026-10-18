@@ -3,6 +3,7 @@ import { z } from "zod";
 import { idParam, ok, requireUser } from "../../lib/http.js";
 import { authenticate } from "../../middleware/auth.js";
 import { couponCodeSchema } from "../coupons/coupons.schema.js";
+import { requestPoint } from "../geo/geo.js";
 import * as service from "./cart.service.js";
 import { MAX_QTY_PER_LINE } from "./quote.js";
 
@@ -16,12 +17,21 @@ const cartQuery = z.object({
     .transform((value) => value === "true"),
 });
 
+const addItemSchema = z.object({
+  variantId: z.string().min(1),
+  quantity: quantity.default(1),
+  /** The shop the customer picked; omitted = the best shop for their location. */
+  branchId: z.string().min(1).optional(),
+  /** Confirms "start a new cart from this shop" after a CART_SHOP_CONFLICT. */
+  replaceCart: z.boolean().default(false),
+});
+
 export const cartRouter = Router();
 cartRouter.use(authenticate);
 
 cartRouter.get("/", async (req: Request, res: Response) => {
   const { coupon, useCoins } = cartQuery.parse(req.query);
-  res.json(ok(await service.getCart(requireUser(req).userId, { couponCode: coupon, useCoins })));
+  res.json(ok(await service.getCart(requireUser(req).userId, { couponCode: coupon, useCoins }, requestPoint(req))));
 });
 
 cartRouter.get("/count", async (req: Request, res: Response) => {
@@ -32,9 +42,19 @@ cartRouter.get("/coupons", async (req: Request, res: Response) => {
   res.json(ok(await service.getCartCoupons(requireUser(req).userId)));
 });
 
+cartRouter.get("/shops", async (req: Request, res: Response) => {
+  res.json(ok(await service.cartShopOptions(requireUser(req).userId, requestPoint(req))));
+});
+
+cartRouter.post("/shop", async (req: Request, res: Response) => {
+  const { branchId } = z.object({ branchId: z.string().min(1) }).parse(req.body);
+  await service.switchCartShop(requireUser(req).userId, branchId);
+  res.status(204).end();
+});
+
 cartRouter.post("/items", async (req: Request, res: Response) => {
-  const body = z.object({ variantId: z.string().min(1), quantity: quantity.default(1) }).parse(req.body);
-  res.status(201).json(ok(await service.addItem(requireUser(req).userId, body.variantId, body.quantity)));
+  const body = addItemSchema.parse(req.body);
+  res.status(201).json(ok(await service.addItem(requireUser(req).userId, body, requestPoint(req))));
 });
 
 cartRouter.patch("/items/:id", async (req: Request, res: Response) => {

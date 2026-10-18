@@ -10,6 +10,9 @@ export const addressInputSchema = z.object({
   city: z.string().trim().min(2).max(60),
   state: z.string().trim().min(2).max(60),
   pincode: z.string().trim().regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
+  /** Delivery point from GPS or the map pin; drives distance and delivery fee. */
+  lat: z.number().min(-90).max(90).nullish(),
+  lng: z.number().min(-180).max(180).nullish(),
   type: z.enum(["HOME", "WORK", "OTHER"]).default("HOME"),
   isDefault: z.boolean().default(false),
 });

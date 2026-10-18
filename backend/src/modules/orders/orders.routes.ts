@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from "express";
-import { idParam, ok, requireUser } from "../../lib/http.js";
-import { adminOnly, authenticate } from "../../middleware/auth.js";
+import { idParam, ok, requireUser, requireVendorId } from "../../lib/http.js";
+import { adminOnly, authenticate, vendorOnly } from "../../middleware/auth.js";
+import { requireTradingVendor } from "../vendors/vendor-guard.js";
+import { requestPoint } from "../geo/geo.js";
 import * as adminService from "./orders.admin.service.js";
 import {
   adminNoteSchema,
@@ -19,11 +21,11 @@ export const ordersRouter = Router();
 ordersRouter.use(authenticate);
 
 ordersRouter.post("/quote", async (req: Request, res: Response) => {
-  res.json(ok(await service.quote(requireUser(req).userId, quoteSchema.parse(req.body))));
+  res.json(ok(await service.quote(requireUser(req).userId, quoteSchema.parse(req.body), requestPoint(req))));
 });
 
 ordersRouter.post("/", async (req: Request, res: Response) => {
-  res.status(201).json(ok(await service.placeOrder(requireUser(req).userId, placeOrderSchema.parse(req.body))));
+  res.status(201).json(ok(await service.placeOrder(requireUser(req).userId, placeOrderSchema.parse(req.body), requestPoint(req))));
 });
 
 ordersRouter.get("/", async (req: Request, res: Response) => {
@@ -89,4 +91,43 @@ adminOrdersRouter.patch("/:id/note", async (req: Request, res: Response) => {
   const { id } = idParam.parse(req.params);
   const { adminNote } = adminNoteSchema.parse(req.body);
   res.json(ok(await adminService.updateAdminNote(id, adminNote)));
+});
+
+/** Vendor portal: /vendor/orders — the same order tools as the admin, limited to the vendor's own orders. */
+export const vendorOrdersRouter = Router();
+vendorOrdersRouter.use(vendorOnly);
+
+const vendorScope = (req: Request) => ({ vendorId: requireVendorId(req) });
+const vendorActor = (req: Request) => ({ id: requireUser(req).userId, role: "VENDOR" as const });
+
+vendorOrdersRouter.get("/", async (req: Request, res: Response) => {
+  const { items, meta } = await adminService.listOrdersAdmin(adminOrderListQuery.parse(req.query), vendorScope(req));
+  res.json(ok(items, meta));
+});
+
+vendorOrdersRouter.get("/status-counts", async (req: Request, res: Response) => {
+  res.json(ok(await adminService.orderStatusCounts(vendorScope(req))));
+});
+
+vendorOrdersRouter.get("/:id", async (req: Request, res: Response) => {
+  const { id } = idParam.parse(req.params);
+  res.json(ok(await adminService.getOrderAdmin(id, vendorScope(req))));
+});
+
+vendorOrdersRouter.patch("/:id/status", requireTradingVendor, async (req: Request, res: Response) => {
+  const { id } = idParam.parse(req.params);
+  const { status, note } = updateStatusSchema.parse(req.body);
+  await adminService.updateOrderStatus(id, status, note, vendorActor(req), vendorScope(req));
+  res.json(ok(await adminService.getOrderAdmin(id, vendorScope(req))));
+});
+
+vendorOrdersRouter.patch("/:id/assign-rider", requireTradingVendor, async (req: Request, res: Response) => {
+  const { id } = idParam.parse(req.params);
+  const { riderId, note } = assignRiderSchema.parse(req.body);
+  res.json(ok(await adminService.assignRider(id, riderId, note, vendorActor(req), vendorScope(req))));
+});
+
+vendorOrdersRouter.post("/:id/resend-notifications", async (req: Request, res: Response) => {
+  const { id } = idParam.parse(req.params);
+  res.json(ok(await adminService.resendRiderNotifications(id, vendorScope(req))));
 });

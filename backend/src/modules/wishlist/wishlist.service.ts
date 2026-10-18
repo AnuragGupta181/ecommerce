@@ -1,6 +1,7 @@
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
-import { productCardSelect, toProductCard } from "../products/products.presenter.js";
+import type { Point } from "../geo/geo.js";
+import { productCardSelect, toProductCards } from "../products/products.presenter.js";
 
 /** Returns which of `productIds` the user has wishlisted (empty for guests). */
 export async function wishlistedIds(userId: string | undefined, productIds: string[]): Promise<Set<string>> {
@@ -12,14 +13,14 @@ export async function wishlistedIds(userId: string | undefined, productIds: stri
   return new Set(rows.map((row) => row.productId));
 }
 
-export async function listWishlist(userId: string) {
+export async function listWishlist(userId: string, point: Point | null = null) {
   const rows = await prisma.wishlistItem.findMany({
     where: { userId, product: { isActive: true } },
     orderBy: { createdAt: "desc" },
     select: { product: { select: productCardSelect } },
   });
   const all = new Set(rows.map((row) => row.product.id));
-  return rows.map((row) => toProductCard(row.product, all));
+  return toProductCards(rows.map((row) => row.product), all, point);
 }
 
 export async function wishlistProductIds(userId: string): Promise<string[]> {

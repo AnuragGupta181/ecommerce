@@ -9,6 +9,8 @@ export type ShippingAddress = {
   city: string;
   state: string;
   pincode: string;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 export type NotifyOrder = {
@@ -38,6 +40,13 @@ function formatAddress(a: ShippingAddress): string {
   return [a.line1, a.line2, a.landmark ? `Near ${a.landmark}` : null, `${a.city}, ${a.state} - ${a.pincode}`]
     .filter(Boolean)
     .join(", ");
+}
+
+/** A tap-to-open map of the delivery point, when the order captured coordinates. */
+function mapLine(a: ShippingAddress): string | null {
+  return typeof a.lat === "number" && typeof a.lng === "number"
+    ? `Map: https://www.google.com/maps/search/?api=1&query=${a.lat},${a.lng}`
+    : null;
 }
 
 function itemsText(order: NotifyOrder): string {
@@ -70,6 +79,22 @@ function render(storeName: string, subject: string, heading: string, lines: stri
 }
 
 export const templates = {
+  /** Plain branded message for vendor, support, chat and subscription notices. */
+  notice(store: string, subject: string, heading: string, lines: (string | null | undefined)[]): Rendered {
+    return render(store, subject, heading, lines.filter((line): line is string => Boolean(line)));
+  },
+
+  orderPlacedVendor(store: string, order: NotifyOrder, shopName: string): Rendered {
+    return render(store, `New order ${order.orderNumber} for ${shopName}`, `New order ${order.orderNumber}`, [
+      `Customer: ${order.shippingAddress.name} (${order.shippingAddress.phone})`,
+      itemsText(order),
+      `Amount: ${amountLine(order)}`,
+      `Address: ${formatAddress(order.shippingAddress)}`,
+      mapLine(order.shippingAddress) ?? "",
+      "Confirm and pack it from your vendor portal, then assign one of your delivery partners.",
+    ].filter(Boolean));
+  },
+
   orderPlacedCustomer(store: string, order: NotifyOrder): Rendered {
     return render(store, `Order ${order.orderNumber} placed`, `Thanks for your order, ${order.user.name}!`, [
       `Order ID: ${order.orderNumber}`,
@@ -110,9 +135,11 @@ export const templates = {
       `Customer: ${a.name}`,
       `Customer phone: ${a.phone}`,
       `Address: ${formatAddress(a)}`,
+      mapLine(a),
       `Items:\n${itemsText(order)}`,
       `Collect: ${amountLine(order)}`,
-    ]);
+      "Call the customer before you leave to confirm they are home.",
+    ].filter((line): line is string => line !== null));
   },
 
   riderAssignedAdmin(store: string, order: NotifyOrder, rider: NotifyRider): Rendered {

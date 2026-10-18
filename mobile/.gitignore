@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Yarn 4 local state (regenerated on every install)
+.yarn/install-state.gz

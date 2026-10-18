@@ -212,3 +212,62 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 - [ ] Sync `docs/FLOWS.md` with branch detection and offline fallback flows
 - [ ] Sync `docs/TESTING.md`, `docs/PRD.md`, and `docs/DESIGN.md`
 
+---
+
+# Marketplace (design: [MARKETPLACE.md](MARKETPLACE.md))
+
+Build a whole phase, then test it; run the smoke test before every push.
+
+## Phase 8 — Data model
+
+- [ ] Roles `VENDOR`; `Vendor` (approval, commission, staff via `User.vendorId`); `Branch.vendorId` + hours, delivery pricing
+- [ ] Listings: `BranchVariantStock` gains `price`, `mrp`, `costPrice`; `CartItem.branchId`; `Order.vendorId`, commission snapshot, payout link
+- [ ] `Address.lat/lng`; `Rider.vendorId`
+- [ ] Subscriptions: plans, subscriptions, deliveries, pauses, payments
+- [ ] Payouts, tickets + messages, conversations + chat messages, document numbering
+- [ ] Migration + backfill (default vendor/branch owns existing catalog, stock and orders); seed vendors near each other
+
+## Phase 9 — Backend: vendors, listings, stock, geo, cart, orders
+
+- [ ] Vendor signup / approval / staff; admin vendor management; role guards (`requireVendor`)
+- [ ] Branch settings (location, hours, online switch, per-km pricing) and nearby search; mount branches module
+- [ ] Vendor product + listing CRUD; offers per variant (distance, fee, open/closed/out of stock/too far)
+- [ ] `branch-stock` service: automatic (order, cancel, return, subscription) + manual adjust, movements, low-stock email
+- [ ] `geo` distance provider (haversine × road factor; ORS when `ORS_API_KEY`); `pricing.deliveryFeeFor`
+- [ ] Location-aware catalog cards; single-branch cart with conflict + switch-shop suggestions
+- [ ] Checkout per branch with commission snapshot; vendor order management and vendor riders; rider gets customer details
+
+## Phase 10 — Backend: subscriptions
+
+- [ ] Plans CRUD (vendor); public plans nearby (daily essentials)
+- [ ] Subscription quote (pure pricing) + subscribe → schedule rows; pause range, skip date, cancel
+- [ ] Vendor today's deliveries: sent (stock deduct) / missed; payments ledger
+- [ ] Daily cron (reminders, stock-vs-subscription warnings, expiry)
+
+## Phase 11 — Backend: support, chat, documents, payouts, reports
+
+- [ ] Tickets with major/minor routing, full context view, thread, email notifications
+- [ ] Customer ↔ vendor chat with order system messages
+- [ ] PDF invoice, subscription statement, payment receipt, payout statement
+- [ ] Payouts (create from unsettled, mark paid); Excel report export
+- [ ] Vercel Blob upload driver
+
+## Phase 12 — Portal (Next.js): vendor + super admin
+
+- [ ] Role-aware session, navigation and guards; vendor signup page
+- [ ] Vendor: dashboard, shop settings, products + listings, stock, orders, riders, plans, today's deliveries, subscribers + payments, tickets, messages, payouts, reports
+- [ ] Admin: vendors (approve, commission, suspend), payouts, all tickets, vendor filter on orders
+
+## Phase 13 — Mobile
+
+- [ ] Location: detect / manual, delivering-to bar, address coordinates
+- [ ] Offers on product detail, shop page, closed / out-of-stock labels, cart shop header + switch shop
+- [ ] Daily essentials, subscribe flow (period, days, slot, skip dates, breakdown), my subscriptions (calendar, pause, skip, ledger, receipts)
+- [ ] Tickets (create, list, thread), chat (conversations, thread), invoices; live stock polling
+
+## Phase 14 — Quality and docs
+
+- [ ] Unit tests: delivery fee, subscription pricing + schedule, commission, ticket routing
+- [ ] Integration: vendor lifecycle, branch cart + checkout, subscription delivery + ledger, tickets
+- [ ] Smoke test extended to the marketplace flow
+- [ ] API.md, DATABASE.md, FLOWS.md, ARCHITECTURE.md, AGENTS.md updated

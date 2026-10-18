@@ -3,25 +3,33 @@ import { AppError } from "../../lib/errors.js";
 import { prisma, type Db } from "../../lib/prisma.js";
 import { inBackground, notifyOrderStatus } from "../../services/notify/index.js";
 import { changeCoins } from "../coins/coins.service.js";
+import { applyListingStockChange } from "../branch-stock/branch-stock.service.js";
 import { applyStockChange } from "../inventory/inventory.service.js";
 import { canTransition } from "./order-status.js";
 
-export type Actor = { id: string; role: "CUSTOMER" | "ADMIN" };
+export type Actor = { id: string; role: "CUSTOMER" | "ADMIN" | "VENDOR" };
 
 type TransitionOptions = { actor: Actor; note?: string; reason?: string };
 
 type OrderWithItems = Prisma.OrderGetPayload<{ include: { items: true } }>;
 
+/** Puts stock back where it came from: the selling shop, or the catalog for orders placed before shops. */
 async function restock(db: Db, order: OrderWithItems, type: "CANCEL" | "RETURN", actorId: string) {
+  const reason = `${type === "CANCEL" ? "Cancelled" : "Returned"} order ${order.orderNumber}`;
+  const listings = order.branchId
+    ? await db.branchVariantStock.findMany({
+        where: { branchId: order.branchId, variantId: { in: order.items.map((item) => item.variantId) } },
+        select: { id: true, variantId: true },
+      })
+    : [];
+  const listingOf = new Map(listings.map((listing) => [listing.variantId, listing.id]));
   for (const item of order.items) {
-    await applyStockChange(db, {
-      variantId: item.variantId,
-      delta: item.quantity,
-      type,
-      reason: `${type === "CANCEL" ? "Cancelled" : "Returned"} order ${order.orderNumber}`,
-      orderId: order.id,
-      actorId,
-    });
+    const listingId = listingOf.get(item.variantId);
+    if (listingId) {
+      await applyListingStockChange(db, { listingId, delta: item.quantity, type, reason, orderId: order.id, actorId });
+    } else {
+      await applyStockChange(db, { variantId: item.variantId, delta: item.quantity, type, reason, orderId: order.id, actorId });
+    }
     await db.product.update({ where: { id: item.productId }, data: { soldCount: { decrement: item.quantity } } });
   }
 }

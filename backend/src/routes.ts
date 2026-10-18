@@ -9,16 +9,21 @@ import { coinsRouter } from "./modules/coins/coins.routes.js";
 import { adminCouponsRouter, couponsRouter } from "./modules/coupons/coupons.routes.js";
 import { adminDashboardRouter } from "./modules/dashboard/dashboard.routes.js";
 import { homeRouter } from "./modules/home/home.routes.js";
-import { adminInventoryRouter } from "./modules/inventory/inventory.routes.js";
 import { adminNotificationLogRouter, notificationsRouter } from "./modules/notifications/notifications.routes.js";
-import { adminOrdersRouter, ordersRouter } from "./modules/orders/orders.routes.js";
+import { adminOrdersRouter, ordersRouter, vendorOrdersRouter } from "./modules/orders/orders.routes.js";
 import { adminProductsRouter, productsRouter } from "./modules/products/products.routes.js";
 import { adminReviewsRouter, reviewsRouter } from "./modules/reviews/reviews.routes.js";
-import { adminRidersRouter } from "./modules/riders/riders.routes.js";
+import { adminRidersRouter, vendorRidersRouter } from "./modules/riders/riders.routes.js";
 import { adminSettingsRouter, settingsRouter } from "./modules/settings/settings.routes.js";
 import { adminUploadsRouter, uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { adminCustomersRouter, profileRouter } from "./modules/users/users.routes.js";
 import { wishlistRouter } from "./modules/wishlist/wishlist.routes.js";
+import { adminAuditRouter } from "./modules/audit/audit.routes.js";
+import { adminBranchesRouter, branchesRouter, vendorBranchesRouter } from "./modules/branches/branch.routes.js";
+import { chatRouter, vendorChatRouter } from "./modules/chat/chat.routes.js";
+import { vendorCounterSalesRouter } from "./modules/counter-sales/counter-sales.routes.js";
+import { adminInventoryRouter, offersRouter, vendorListingsRouter, vendorProductsRouter } from "./modules/listings/listings.routes.js";
+import { adminVendorsRouter, vendorProfileRouter, vendorsRouter, vendorStaffRouter } from "./modules/vendors/vendors.routes.js";
 
 export const apiRouter = Router();
 
@@ -44,6 +49,23 @@ apiRouter.use("/orders", ordersRouter);
 apiRouter.use("/coins", coinsRouter);
 apiRouter.use("/notifications", notificationsRouter);
 apiRouter.use("/uploads", uploadsRouter);
+apiRouter.use("/vendors", vendorsRouter);
+apiRouter.use("/branches", branchesRouter);
+apiRouter.use("/offers", offersRouter);
+apiRouter.use("/chat", chatRouter);
+
+// Vendor portal routes: every router below applies `vendorOnly` and is scoped to the caller's shop
+const vendor = Router();
+vendor.use("/profile", vendorProfileRouter);
+vendor.use("/staff", vendorStaffRouter);
+vendor.use("/branches", vendorBranchesRouter);
+vendor.use("/listings", vendorListingsRouter);
+vendor.use("/products", vendorProductsRouter);
+vendor.use("/orders", vendorOrdersRouter);
+vendor.use("/riders", vendorRidersRouter);
+vendor.use("/counter-sales", vendorCounterSalesRouter);
+vendor.use("/messages", vendorChatRouter);
+apiRouter.use("/vendor", vendor);
 
 // Admin routes: every router below applies `adminOnly`
 const admin = Router();
@@ -61,4 +83,7 @@ admin.use("/reviews", adminReviewsRouter);
 admin.use("/settings", adminSettingsRouter);
 admin.use("/notification-logs", adminNotificationLogRouter);
 admin.use("/uploads", adminUploadsRouter);
+admin.use("/vendors", adminVendorsRouter);
+admin.use("/branches", adminBranchesRouter);
+admin.use("/audit", adminAuditRouter);
 apiRouter.use("/admin", admin);
