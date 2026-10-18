@@ -9,8 +9,8 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Haat Admin", template: "%s · Haat Admin" },
-  description: "Store management for Haat",
+  title: { default: "Haat Partner", template: "%s · Haat" },
+  description: "Admin and shop portal for Haat",
   robots: { index: false, follow: false },
 };
 

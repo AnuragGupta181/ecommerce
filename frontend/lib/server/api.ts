@@ -22,15 +22,25 @@ export type Query = Record<string, string | number | boolean | null | undefined>
 type RequestOptions = { query?: Query; body?: unknown; form?: FormData };
 type Envelope<T> = { data: T; meta?: PageMeta };
 
+function buildUrl(path: string, query: Query = {}): URL {
+  const url = new URL(`${API_URL}${path}`);
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
+  }
+  return url;
+}
+
+async function toApiError(res: Response): Promise<ApiError> {
+  const json = await res.json().catch(() => null);
+  const error = json?.error;
+  return new ApiError(res.status, error?.code ?? "INTERNAL_ERROR", error?.message ?? "The server could not complete the request", error?.details);
+}
+
 async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<Envelope<T>> {
   const token = await getAccessToken();
   if (!token) redirect("/session-expired");
 
-  const url = new URL(`${API_URL}${path}`);
-  for (const [key, value] of Object.entries(options.query ?? {})) {
-    if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
-  }
-
+  const url = buildUrl(path, options.query);
   const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
   let body: BodyInit | undefined;
   if (options.form) {
@@ -43,18 +53,37 @@ async function request<T>(method: string, path: string, options: RequestOptions 
   const res = await fetch(url, { method, headers, body, cache: "no-store" });
   if (res.status === 204) return { data: undefined as T };
 
-  const json = await res.json().catch(() => null);
   if (!res.ok) {
     if (res.status === 401) redirect("/session-expired");
-    const error = json?.error;
-    throw new ApiError(
-      res.status,
-      error?.code ?? "INTERNAL_ERROR",
-      error?.message ?? "The server could not complete the request",
-      error?.details,
-    );
+    throw await toApiError(res);
   }
-  return json as Envelope<T>;
+  return (await res.json()) as Envelope<T>;
+}
+
+/** Calls that need no login: shop signup and the rider's schedule link. */
+async function publicRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(buildUrl(path), {
+    method,
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!res.ok) throw await toApiError(res);
+  return ((await res.json()) as Envelope<T>).data;
+}
+
+export const publicApi = {
+  get: <T>(path: string) => publicRequest<T>("GET", path),
+  post: <T>(path: string, body?: unknown) => publicRequest<T>("POST", path, body),
+};
+
+/** A file (PDF, Excel) streamed straight from the backend with the session's token. */
+export async function fetchFile(path: string, query?: Query): Promise<Response> {
+  const token = await getAccessToken();
+  if (!token) redirect("/session-expired");
+  const res = await fetch(buildUrl(path, query), { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+  if (!res.ok) throw await toApiError(res);
+  return res;
 }
 
 export const api = {

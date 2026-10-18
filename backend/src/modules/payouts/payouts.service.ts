@@ -8,9 +8,14 @@ import { prisma, type Db } from "../../lib/prisma.js";
 import { inBackground, sendNotice } from "../../services/notify/index.js";
 import { audit, type AuditActor } from "../audit/audit.service.js";
 import { settle } from "./settlement.js";
+import { dayRange } from "../../lib/day-range.js";
 
-export const periodSchema = z.object({ from: z.coerce.date(), to: z.coerce.date() }).refine((value) => value.from <= value.to, "From must be before To");
-export const createPayoutSchema = z.object({ vendorId: z.string().min(1), from: z.coerce.date(), to: z.coerce.date(), note: z.string().trim().max(300).optional() });
+const fromBeforeTo = (value: { from: Date; to: Date }) => value.from <= value.to;
+
+export const periodSchema = z.object(dayRange).refine(fromBeforeTo, "From must be before To");
+export const createPayoutSchema = z
+  .object({ vendorId: z.string().min(1), ...dayRange, note: z.string().trim().max(300).optional() })
+  .refine(fromBeforeTo, "From must be before To");
 export const markPaidSchema = z.object({ reference: z.string().trim().min(2).max(120), note: z.string().trim().max(300).optional() });
 export const payoutListQuery = paginationQuery.extend({ vendorId: z.string().optional(), status: z.enum(["PENDING", "PAID"]).optional() });
 

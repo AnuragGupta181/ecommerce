@@ -3,7 +3,6 @@
 import { MessageCircle, Send } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { assignRider, resendNotifications, saveAdminNote, updateOrderStatus } from "@/app/(dashboard)/orders/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -13,7 +12,17 @@ import { useAction } from "@/lib/use-action";
 
 const NOTE_REQUIRED: OrderStatus[] = ["CANCELLED", "RETURN_REJECTED"];
 
-export function OrderActions({ order, riders }: { order: OrderDetail; riders: RiderRow[] }) {
+type Result = { ok: true; data: unknown } | { ok: false; message: string; fieldErrors?: Record<string, string> };
+
+/** Server Actions for the portal showing the order: admins and vendors call different endpoints. */
+export type OrderActionSet = {
+  updateStatus: (id: string, status: OrderStatus, note?: string) => Promise<Result>;
+  assignRider: (id: string, riderId: string) => Promise<Result>;
+  resend: (id: string) => Promise<Result>;
+  saveNote?: (id: string, note: string) => Promise<Result>;
+};
+
+export function OrderActions({ order, riders, actions, ridersHref }: { order: OrderDetail; riders: RiderRow[]; actions: OrderActionSet; ridersHref: string }) {
   const [nextStatus, setNextStatus] = useState<OrderStatus | "">(order.allowedTransitions[0] ?? "");
   const [statusNote, setStatusNote] = useState("");
   const [riderId, setRiderId] = useState(order.rider?.id ?? "");
@@ -23,6 +32,7 @@ export function OrderActions({ order, riders }: { order: OrderDetail; riders: Ri
   const resend = useAction();
   const note = useAction();
 
+  const saveNote = actions.saveNote;
   const noteRequired = nextStatus !== "" && NOTE_REQUIRED.includes(nextStatus);
 
   return (
@@ -48,7 +58,7 @@ export function OrderActions({ order, riders }: { order: OrderDetail; riders: Ri
               disabled={!nextStatus || (noteRequired && statusNote.trim().length < 3)}
               onClick={() =>
                 nextStatus &&
-                status.run(() => updateOrderStatus(order.id, nextStatus, statusNote), {
+                status.run(() => actions.updateStatus(order.id, nextStatus, statusNote), {
                   success: `Order marked ${titleCase(nextStatus).toLowerCase()}`,
                   onSuccess: () => setStatusNote(""),
                 })
@@ -73,7 +83,7 @@ export function OrderActions({ order, riders }: { order: OrderDetail; riders: Ri
           {order.canAssignRider ? (
             riders.length === 0 ? (
               <p className="text-ink-500">
-                No active riders. <Link href="/riders" className="font-semibold text-brand-700 hover:underline">Register a rider</Link> first.
+                No active riders. <Link href={ridersHref} className="font-semibold text-brand-700 hover:underline">Register a rider</Link> first.
               </p>
             ) : (
               <>
@@ -90,7 +100,7 @@ export function OrderActions({ order, riders }: { order: OrderDetail; riders: Ri
                 <Button
                   pending={rider.pending}
                   disabled={!riderId || riderId === order.rider?.id}
-                  onClick={() => rider.run(() => assignRider(order.id, riderId), { success: "Rider assigned. Customer, rider and admin are being notified." })}
+                  onClick={() => rider.run(() => actions.assignRider(order.id, riderId), { success: "Rider assigned. The customer and rider are being notified." })}
                 >
                   {order.rider ? "Reassign rider" : "Assign and notify"}
                 </Button>
@@ -102,7 +112,7 @@ export function OrderActions({ order, riders }: { order: OrderDetail; riders: Ri
 
           {order.rider ? (
             <div className="flex flex-col gap-2 border-t border-line pt-3">
-              <Button variant="outline" pending={resend.pending} onClick={() => resend.run(() => resendNotifications(order.id), { success: "Notifications re-sent" })}>
+              <Button variant="outline" pending={resend.pending} onClick={() => resend.run(() => actions.resend(order.id), { success: "Notifications re-sent" })}>
                 <Send size={14} /> Resend email & WhatsApp
               </Button>
               {order.whatsappLinks ? (
@@ -128,14 +138,16 @@ export function OrderActions({ order, riders }: { order: OrderDetail; riders: Ri
         </div>
       </Card>
 
+      {saveNote ? (
       <Card title="Internal note">
         <div className="flex flex-col gap-3 p-5">
           <Textarea aria-label="Internal note" rows={3} value={adminNote} placeholder="Only visible to admins" onChange={(event) => setAdminNote(event.target.value)} />
-          <Button variant="outline" pending={note.pending} disabled={adminNote === (order.adminNote ?? "")} onClick={() => note.run(() => saveAdminNote(order.id, adminNote), { success: "Note saved" })}>
+          <Button variant="outline" pending={note.pending} disabled={adminNote === (order.adminNote ?? "")} onClick={() => note.run(() => saveNote(order.id, adminNote), { success: "Note saved" })}>
             Save note
           </Button>
         </div>
       </Card>
+      ) : null}
     </>
   );
 }

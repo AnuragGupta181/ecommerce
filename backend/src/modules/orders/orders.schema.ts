@@ -2,6 +2,7 @@ import { z } from "zod";
 import { paginationQuery } from "../../lib/pagination.js";
 import { couponCodeSchema } from "../coupons/coupons.schema.js";
 import { MAX_QTY_PER_LINE } from "../cart/quote.js";
+import { optionalDayRange } from "../../lib/day-range.js";
 
 const orderStatus = z.enum([
   "PLACED",
@@ -51,8 +52,7 @@ export const adminOrderListQuery = paginationQuery.extend({
   riderId: z.string().optional(),
   vendorId: z.string().optional(),
   branchId: z.string().optional(),
-  from: z.coerce.date().optional(),
-  to: z.coerce.date().optional(),
+  ...optionalDayRange,
 });
 
 export const updateStatusSchema = z.object({

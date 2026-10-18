@@ -2,7 +2,6 @@ import { Boxes } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { StockDialog } from "@/components/inventory/stock-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,7 +15,8 @@ import { Thumb } from "@/components/ui/thumb";
 import { formatCount, formatINR } from "@/lib/format";
 import { pageParam, param, type SearchParams } from "@/lib/search-params";
 import { api } from "@/lib/server/api";
-import type { Category, InventoryRow, InventorySummary } from "@/lib/types";
+import type { Listing, ListingSummary, VendorRow } from "@/lib/marketplace-types";
+import type { Category } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Inventory" };
 
@@ -25,7 +25,7 @@ const statusBadge = { in: { tone: "success", label: "In stock" }, low: { tone: "
 export default function InventoryPage({ searchParams }: PageProps<"/inventory">) {
   return (
     <>
-      <PageHeader title="Inventory" description="Stock per variant. Every change is recorded in the movement log." />
+      <PageHeader title="Shop stock" description="Read-only: each shop manages its own prices and stock from the shop portal." />
       <Suspense fallback={<TableSkeleton />}>
         <InventoryContent searchParams={searchParams} />
       </Suspense>
@@ -35,11 +35,12 @@ export default function InventoryPage({ searchParams }: PageProps<"/inventory">)
 
 async function InventoryContent({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
-  const filters = { q: param(params, "q"), categoryId: param(params, "categoryId"), status: param(params, "status") ?? "all" };
-  const [{ items, meta }, summary, categories] = await Promise.all([
-    api.list<InventoryRow>("/admin/inventory", { ...filters, page: pageParam(params), limit: 25 }),
-    api.get<InventorySummary>("/admin/inventory/summary"),
+  const filters = { q: param(params, "q"), vendorId: param(params, "vendorId"), categoryId: param(params, "categoryId"), status: param(params, "status") ?? "all" };
+  const [{ items, meta }, summary, categories, vendors] = await Promise.all([
+    api.list<Listing>("/admin/inventory", { ...filters, page: pageParam(params), limit: 25 }),
+    api.get<ListingSummary>("/admin/inventory/summary", { vendorId: filters.vendorId }),
     api.get<Category[]>("/admin/categories"),
+    api.list<VendorRow>("/admin/vendors", { limit: 100 }),
   ]);
 
   return (
@@ -52,6 +53,14 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<Search
       <Card>
         <FilterBar action="/inventory">
           <SearchInput name="q" defaultValue={filters.q} placeholder="Search product, SKU or variant" />
+          <FilterSelect name="vendorId" defaultValue={filters.vendorId ?? ""}>
+            <option value="">All shops</option>
+            {vendors.items.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.shopName}
+              </option>
+            ))}
+          </FilterSelect>
           <FilterSelect name="categoryId" defaultValue={filters.categoryId ?? ""}>
             <option value="">All categories</option>
             {categories.map((category) => (
@@ -75,29 +84,31 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<Search
             <Table minWidth={860}>
               <THead>
                 <Th>Product</Th>
-                <Th>SKU</Th>
+                <Th>Shop</Th>
                 <Th align="right">Price</Th>
                 <Th align="right">Stock</Th>
                 <Th align="right">Alert at</Th>
                 <Th>Status</Th>
-                <Th />
               </THead>
               <tbody>
                 {items.map((row) => (
                   <Tr key={row.id}>
                     <Td>
                       <Link href={`/products/${row.product.id}`} className="flex items-center gap-3">
-                        <Thumb src={row.imageUrl} alt={row.product.name} size={36} />
+                        <Thumb src={row.product.imageUrl} alt={row.product.name} size={36} />
                         <span className="min-w-0">
                           <span className="line-clamp-1 font-semibold hover:underline">{row.product.name}</span>
                           <span className="text-xs text-ink-500">
-                            {row.label} · {row.product.category}
-                            {!row.isActive || !row.product.isActive ? " · inactive" : ""}
+                            {row.variant.label} · {row.variant.sku} · {row.product.category}
+                            {!row.isAvailable || !row.product.isActive ? " · not for sale" : ""}
                           </span>
                         </span>
                       </Link>
                     </Td>
-                    <Td className="font-mono text-xs">{row.sku}</Td>
+                    <Td>
+                      <p>{row.vendor.shopName}</p>
+                      <p className="text-xs text-ink-500">{row.branch.name}</p>
+                    </Td>
                     <Td numeric>{formatINR(row.price)}</Td>
                     <Td numeric>
                       <span className="text-base font-bold">{formatCount(row.stock)}</span>
@@ -107,9 +118,6 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<Search
                     </Td>
                     <Td>
                       <Badge tone={statusBadge[row.status].tone}>{statusBadge[row.status].label}</Badge>
-                    </Td>
-                    <Td align="right">
-                      <StockDialog variant={{ id: row.id, sku: row.sku, name: `${row.product.name} · ${row.label}`, stock: row.stock, lowStockThreshold: row.lowStockThreshold }} />
                     </Td>
                   </Tr>
                 ))}

@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { isActive, navGroups } from "./nav-items";
+import { isActive, navGroupsFor, type Portal } from "./nav-items";
 
-export function SidebarNav() {
-  return <NavList pathname={usePathname()} />;
+export function SidebarNav({ portal, superAdmin }: { portal: Portal; superAdmin: boolean }) {
+  return <NavList portal={portal} superAdmin={superAdmin} pathname={usePathname()} />;
 }
 
 /** Also rendered without a pathname as the Suspense fallback, since dynamic routes only know the URL at request time. */
-export function NavList({ pathname }: { pathname: string | null }) {
+export function NavList({ portal, superAdmin, pathname }: { portal: Portal; superAdmin: boolean; pathname: string | null }) {
   return (
     <nav className="flex flex-col gap-5 px-3 py-4">
-      {navGroups.map((group) => (
+      {navGroupsFor(portal, superAdmin).map((group) => (
         <div key={group.label}>
           <p className="px-3 pb-1.5 text-[11px] font-semibold tracking-wider text-ink-500 uppercase">{group.label}</p>
           <ul className="flex flex-col gap-0.5">

@@ -1,4 +1,6 @@
 import { useAuthStore } from "./auth-store";
+import { locationHeader } from "./geo";
+import { useLocationStore } from "./location-store";
 import type { PageMeta, Session } from "./types";
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
@@ -55,6 +57,8 @@ function buildUrl(path: string, query?: Query): string {
 
 async function send<T>(path: string, options: Options, retry = true): Promise<Envelope<T>> {
   const token = useAuthStore.getState().accessToken;
+  // Prices, offers and fees depend on where the shopper is; the backend reads this on every route.
+  const location = locationHeader(useLocationStore.getState().location);
   let res: Response;
   try {
     res = await fetch(buildUrl(path, options.query), {
@@ -62,6 +66,7 @@ async function send<T>(path: string, options: Options, retry = true): Promise<En
       headers: {
         ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(location ? { "X-Location": location } : {}),
       },
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });

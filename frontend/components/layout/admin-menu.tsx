@@ -1,10 +1,11 @@
 import { LogOut } from "lucide-react";
 import { logout } from "@/app/(auth)/login/actions";
-import { getAdminProfile } from "@/lib/server/session";
+import { getPortalProfile } from "@/lib/server/session";
 
 /** Reads the session cookie, so it renders behind a Suspense boundary in the top bar. */
 export async function AdminMenu() {
-  const admin = await getAdminProfile();
+  const admin = await getPortalProfile();
+  const subtitle = admin.role === "VENDOR" ? (admin.vendorRole === "STAFF" ? "Shop staff" : "Shop owner") : admin.isSuperAdmin ? "Super admin" : admin.email;
   const initials = admin.name
     .split(" ")
     .map((part) => part[0])
@@ -17,7 +18,7 @@ export async function AdminMenu() {
       <span className="flex size-9 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-ink-900">{initials}</span>
       <div className="hidden leading-tight sm:block">
         <p className="font-semibold">{admin.name}</p>
-        <p className="text-xs text-ink-500">{admin.email}</p>
+        <p className="text-xs text-ink-500">{subtitle}</p>
       </div>
       <form action={logout}>
         <button type="submit" className="flex size-9 items-center justify-center rounded-full text-ink-500 hover:bg-brand-50 hover:text-ink-900" aria-label="Log out" title="Log out">

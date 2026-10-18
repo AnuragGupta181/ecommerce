@@ -6,12 +6,15 @@ import { addDays, todayIST } from "../pricing/subscription.js";
 import { commissionOn } from "../payouts/settlement.js";
 import { loadLedger } from "../subscriptions/ledger.js";
 import { fromDbDate, toDbDate } from "../subscriptions/subscription-dates.js";
+import { optionalDayRange } from "../../lib/day-range.js";
 
 export const reportQuery = z.object({
   preset: z.enum(["this_week", "this_month", "last_month", "custom"]).default("this_month"),
-  from: z.coerce.date().optional(),
-  to: z.coerce.date().optional(),
+  ...optionalDayRange,
 });
+
+/** The IST calendar day of an instant, as YYYY-MM-DD. */
+const istDay = (date: Date) => new Date(date.getTime() + 330 * 60_000).toISOString().slice(0, 10);
 
 export type ReportRange = { from: Date; to: Date; label: string };
 
@@ -22,7 +25,7 @@ export function resolveRange(query: z.infer<typeof reportQuery>, now = new Date(
   const istEnd = (iso: string) => new Date(Date.parse(`${addDays(iso, 1)}T00:00:00Z`) - 330 * 60_000 - 1);
   if (query.preset === "custom") {
     if (!query.from || !query.to || query.from > query.to) throw AppError.badRequest("Pick a valid from and to date");
-    return { from: query.from, to: query.to, label: `${query.from.toISOString().slice(0, 10)} to ${query.to.toISOString().slice(0, 10)}` };
+    return { from: query.from, to: query.to, label: `${istDay(query.from)} to ${istDay(query.to)}` };
   }
   if (query.preset === "this_week") {
     const weekday = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0
@@ -68,7 +71,7 @@ async function vendorData(vendorId: string, range: ReportRange) {
       where: { branch: { vendorId } },
       include: { branch: { select: { name: true } }, variant: { select: { sku: true, label: true, product: { select: { name: true } } } }, stockMovements: { where: { createdAt: { gte: range.from, lte: range.to } }, select: { type: true, quantity: true } } },
     }),
-    prisma.subscription.findMany({ where: { vendorId, startDate: { lte: toDbDate(range.to.toISOString().slice(0, 10)) }, endDate: { gte: toDbDate(range.from.toISOString().slice(0, 10)) } }, include: { plan: { select: { name: true } }, user: { select: { name: true } } } }),
+    prisma.subscription.findMany({ where: { vendorId, startDate: { lte: toDbDate(istDay(range.to)) }, endDate: { gte: toDbDate(istDay(range.from)) } }, include: { plan: { select: { name: true } }, user: { select: { name: true } } } }),
     prisma.payout.findMany({ where: { vendorId, createdAt: { gte: range.from, lte: range.to } } }),
     prisma.order.groupBy({ by: ["status"], where: { vendorId, createdAt: { gte: range.from, lte: range.to } }, _count: true }),
   ]);

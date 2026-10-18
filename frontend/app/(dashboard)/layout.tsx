@@ -5,9 +5,9 @@ import { Topbar } from "@/components/layout/topbar";
 export default function DashboardLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
+      <Sidebar portal="admin" />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
+        <Topbar portal="admin" />
         <main className="mx-auto w-full max-w-[1280px] flex-1 p-6">{children}</main>
       </div>
     </div>

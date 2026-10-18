@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { z } from "zod";
 import { idParam, ok, requireUser, requireVendorId } from "../../lib/http.js";
 import { adminOnly, authenticate, vendorOnly } from "../../middleware/auth.js";
 import { requireTradingVendor } from "../vendors/vendor-guard.js";
@@ -52,6 +53,8 @@ ordersRouter.post("/:id/return", async (req: Request, res: Response) => {
   res.json(ok(await service.getOrder(requireUser(req).userId, id)));
 });
 
+const statusCountsQuery = z.object({ vendorId: z.string().min(1).optional() });
+
 export const adminOrdersRouter = Router();
 adminOrdersRouter.use(adminOnly);
 
@@ -60,8 +63,9 @@ adminOrdersRouter.get("/", async (req: Request, res: Response) => {
   res.json(ok(items, meta));
 });
 
-adminOrdersRouter.get("/status-counts", async (_req: Request, res: Response) => {
-  res.json(ok(await adminService.orderStatusCounts()));
+adminOrdersRouter.get("/status-counts", async (req: Request, res: Response) => {
+  const { vendorId } = statusCountsQuery.parse(req.query);
+  res.json(ok(await adminService.orderStatusCounts({ vendorId })));
 });
 
 adminOrdersRouter.get("/:id", async (req: Request, res: Response) => {

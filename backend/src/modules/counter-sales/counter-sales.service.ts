@@ -8,6 +8,7 @@ import { inBackground } from "../../services/notify/index.js";
 import { audit, type AuditActor } from "../audit/audit.service.js";
 import { applyListingStockChange, type StockChangeResult } from "../branch-stock/branch-stock.service.js";
 import { notifyLowStock } from "../orders/order-events.js";
+import { optionalDayRange } from "../../lib/day-range.js";
 
 export const counterSaleSchema = z.object({
   branchId: z.string().min(1),
@@ -29,8 +30,7 @@ export const counterSaleSchema = z.object({
 
 export const counterSaleListQuery = paginationQuery.extend({
   branchId: z.string().optional(),
-  from: z.coerce.date().optional(),
-  to: z.coerce.date().optional(),
+  ...optionalDayRange,
 });
 
 export type CounterSaleInput = z.infer<typeof counterSaleSchema>;

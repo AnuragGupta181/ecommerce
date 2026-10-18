@@ -15,10 +15,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type NavItem = { href: string; label: string; icon: LucideIcon };
+export type Portal = "admin" | "vendor";
+export type NavItem = { href: string; label: string; icon: LucideIcon; superAdminOnly?: boolean };
 export type NavGroup = { label: string; items: NavItem[] };
 
-export const navGroups: NavGroup[] = [
+const adminNav: NavGroup[] = [
   { label: "Overview", items: [{ href: "/", label: "Dashboard", icon: LayoutDashboard }] },
   {
     label: "Catalog",
@@ -26,7 +27,7 @@ export const navGroups: NavGroup[] = [
       { href: "/products", label: "Products", icon: Package },
       { href: "/categories", label: "Categories", icon: FolderTree },
       { href: "/brands", label: "Brands", icon: Tag },
-      { href: "/inventory", label: "Inventory", icon: Boxes },
+      { href: "/inventory", label: "Shop stock", icon: Boxes },
     ],
   },
   {
@@ -54,6 +55,26 @@ export const navGroups: NavGroup[] = [
   },
 ];
 
+const vendorNav: NavGroup[] = [
+  { label: "Today", items: [{ href: "/vendor", label: "Dashboard", icon: LayoutDashboard }] },
+  {
+    label: "Sell",
+    items: [
+      { href: "/vendor/orders", label: "Orders", icon: ClipboardList },
+      { href: "/vendor/riders", label: "Riders", icon: Truck },
+    ],
+  },
+];
+
+export function navGroupsFor(portal: Portal, superAdmin: boolean): NavGroup[] {
+  const groups = portal === "vendor" ? vendorNav : adminNav;
+  return groups.map((group) => ({ ...group, items: group.items.filter((item) => superAdmin || !item.superAdminOnly) }));
+}
+
+export function homeHref(portal: Portal): string {
+  return portal === "vendor" ? "/vendor" : "/";
+}
+
 export function isActive(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  return href === "/" || href === "/vendor" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }

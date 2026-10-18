@@ -13,7 +13,7 @@ export function LoginForm() {
 
   return (
     <form action={action} className="flex flex-col gap-4">
-      <input type="hidden" name="next" value={searchParams.get("next") ?? "/"} />
+      <input type="hidden" name="next" value={searchParams.get("next") ?? ""} />
       {state.error || expired ? (
         <p role="alert" className="rounded-control bg-danger-soft px-3 py-2.5 text-danger">
           {state.error ?? "Your session ended. Please sign in again."}

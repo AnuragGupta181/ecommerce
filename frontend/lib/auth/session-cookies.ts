@@ -1,5 +1,12 @@
 import type { Session, SessionUser } from "@/lib/types";
 
+/** Display-only copy of the signed-in user. Authorization always comes from the token, never from this. */
+export type PortalProfile = Pick<SessionUser, "name" | "email"> & {
+  role: PortalRole;
+  vendorRole: "OWNER" | "STAFF" | null;
+  isSuperAdmin: boolean;
+};
+
 /**
  * Cookie contract shared by proxy.ts, Server Actions and Route Handlers.
  * Tokens live only in httpOnly cookies, so client JS never sees them.
@@ -20,7 +27,20 @@ type CookieWriter = {
   delete(name: string): unknown;
 };
 
-export type TokenPayload = { sub: string; role: string; exp: number };
+export type TokenPayload = { sub: string; role: string; exp: number; vid?: string; sa?: boolean };
+
+/** Who may use the portal: admins get `/`, shop owners and staff get `/vendor`. */
+export type PortalRole = "ADMIN" | "VENDOR";
+
+export function homeFor(role: PortalRole): string {
+  return role === "VENDOR" ? "/vendor" : "/";
+}
+
+/** Paths a role may open; everything else redirects to its home. */
+export function pathAllowed(role: PortalRole, pathname: string): boolean {
+  const vendorArea = pathname === "/vendor" || pathname.startsWith("/vendor/");
+  return role === "VENDOR" ? vendorArea : !vendorArea;
+}
 
 /** Reads the JWT payload without verifying it: the backend verifies every call, this only routes. */
 export function decodeToken(token: string): TokenPayload | null {
@@ -32,9 +52,27 @@ export function decodeToken(token: string): TokenPayload | null {
   }
 }
 
-export function isUsableAdminToken(token: string | undefined): token is string {
+function isFresh(payload: TokenPayload): boolean {
+  return payload.exp - EXPIRY_SKEW_SECONDS > Date.now() / 1000;
+}
+
+export function isPortalRole(role: string): role is PortalRole {
+  return role === "ADMIN" || role === "VENDOR";
+}
+
+/** The portal role of a usable (unexpired) token, or null. */
+export function portalRoleOf(token: string | undefined): PortalRole | null {
   const payload = token ? decodeToken(token) : null;
-  return !!payload && payload.role === "ADMIN" && payload.exp - EXPIRY_SKEW_SECONDS > Date.now() / 1000;
+  return payload && isFresh(payload) && isPortalRole(payload.role) ? payload.role : null;
+}
+
+export function isUsableAdminToken(token: string | undefined): token is string {
+  return portalRoleOf(token) === "ADMIN";
+}
+
+export function isUsableVendorToken(token: string | undefined): token is string {
+  const payload = token ? decodeToken(token) : null;
+  return portalRoleOf(token) === "VENDOR" && !!payload?.vid;
 }
 
 function cookieOptions(maxAge: number): CookieOptions {
@@ -45,8 +83,14 @@ export function writeSession(store: CookieWriter, session: Session) {
   const exp = decodeToken(session.accessToken)?.exp ?? 0;
   store.set(ACCESS_COOKIE, session.accessToken, cookieOptions(Math.max(60, exp - Math.floor(Date.now() / 1000))));
   store.set(REFRESH_COOKIE, session.refreshToken, cookieOptions(REFRESH_MAX_AGE));
-  const admin: Pick<SessionUser, "name" | "email"> = { name: session.user.name, email: session.user.email };
-  store.set(ADMIN_COOKIE, JSON.stringify(admin), cookieOptions(REFRESH_MAX_AGE));
+  const profile: PortalProfile = {
+    name: session.user.name,
+    email: session.user.email,
+    role: session.user.role === "VENDOR" ? "VENDOR" : "ADMIN",
+    vendorRole: session.user.vendorRole ?? null,
+    isSuperAdmin: session.user.isSuperAdmin ?? false,
+  };
+  store.set(ADMIN_COOKIE, JSON.stringify(profile), cookieOptions(REFRESH_MAX_AGE));
 }
 
 export function clearSession(store: CookieWriter) {

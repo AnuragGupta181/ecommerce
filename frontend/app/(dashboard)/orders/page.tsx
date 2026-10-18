@@ -14,6 +14,7 @@ import { Table, THead, Td, Th, Tr } from "@/components/ui/table";
 import { formatDateTime, formatINR, titleCase } from "@/lib/format";
 import { hrefWith, pageParam, param, type SearchParams } from "@/lib/search-params";
 import { api } from "@/lib/server/api";
+import type { VendorRow } from "@/lib/marketplace-types";
 import { type OrderRow, type OrderStatus, type RiderRow } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Orders" };
@@ -23,7 +24,7 @@ const TABS: (OrderStatus | undefined)[] = [undefined, "PLACED", "CONFIRMED", "PA
 export default function OrdersPage({ searchParams }: PageProps<"/orders">) {
   return (
     <>
-      <PageHeader title="Orders" description="Confirm, pack, assign riders and track deliveries" />
+      <PageHeader title="Orders" description="Every shop's orders. Shops confirm and deliver their own; step in when needed." />
       <Suspense fallback={<TableSkeleton />}>
         <OrdersContent searchParams={searchParams} />
       </Suspense>
@@ -34,11 +35,12 @@ export default function OrdersPage({ searchParams }: PageProps<"/orders">) {
 async function OrdersContent({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const status = param(params, "status") as OrderStatus | undefined;
-  const filters = { q: param(params, "q"), status, riderId: param(params, "riderId"), from: param(params, "from"), to: param(params, "to") };
-  const [{ items, meta }, counts, riders] = await Promise.all([
+  const filters = { q: param(params, "q"), status, vendorId: param(params, "vendorId"), riderId: param(params, "riderId"), from: param(params, "from"), to: param(params, "to") };
+  const [{ items, meta }, counts, riders, vendors] = await Promise.all([
     api.list<OrderRow>("/admin/orders", { ...filters, page: pageParam(params), limit: 20 }),
-    api.get<Partial<Record<OrderStatus, number>>>("/admin/orders/status-counts"),
-    api.list<RiderRow>("/admin/riders", { limit: 100 }),
+    api.get<Partial<Record<OrderStatus, number>>>("/admin/orders/status-counts", { vendorId: filters.vendorId }),
+    api.list<RiderRow>("/admin/riders", { limit: 100, vendorId: filters.vendorId }),
+    api.list<VendorRow>("/admin/vendors", { limit: 100 }),
   ]);
   const total = Object.values(counts).reduce((sum, count) => sum + (count ?? 0), 0);
 
@@ -63,6 +65,14 @@ async function OrdersContent({ searchParams }: { searchParams: Promise<SearchPar
       <FilterBar action="/orders">
         {status ? <input type="hidden" name="status" value={status} /> : null}
         <SearchInput name="q" defaultValue={filters.q} placeholder="Order number, customer name, email or phone" />
+        <FilterSelect name="vendorId" defaultValue={filters.vendorId ?? ""}>
+          <option value="">All shops</option>
+          {vendors.items.map((vendor) => (
+            <option key={vendor.id} value={vendor.id}>
+              {vendor.shopName}
+            </option>
+          ))}
+        </FilterSelect>
         <FilterSelect name="riderId" defaultValue={filters.riderId ?? ""}>
           <option value="">Any rider</option>
           {riders.items.map((rider) => (
@@ -81,10 +91,11 @@ async function OrdersContent({ searchParams }: { searchParams: Promise<SearchPar
         <EmptyState icon={ClipboardList} title="No orders found" />
       ) : (
         <>
-          <Table minWidth={900}>
+          <Table minWidth={1000}>
             <THead>
               <Th>Order</Th>
               <Th>Customer</Th>
+              <Th>Shop</Th>
               <Th align="right">Items</Th>
               <Th align="right">Amount</Th>
               <Th>Payment</Th>
@@ -103,6 +114,10 @@ async function OrdersContent({ searchParams }: { searchParams: Promise<SearchPar
                   <Td>
                     <p>{order.user.name}</p>
                     <p className="text-xs text-ink-500">{order.user.phone}</p>
+                  </Td>
+                  <Td>
+                    <p>{order.vendor?.shopName ?? "—"}</p>
+                    {order.branch ? <p className="text-xs text-ink-500">{order.branch.name}</p> : null}
                   </Td>
                   <Td numeric>{order.itemCount}</Td>
                   <Td numeric className="font-semibold">

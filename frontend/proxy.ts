@@ -3,35 +3,50 @@ import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
   clearSession,
-  isUsableAdminToken,
+  homeFor,
+  isPortalRole,
+  pathAllowed,
+  portalRoleOf,
   refreshSession,
   writeSession,
+  type PortalRole,
 } from "@/lib/auth/session-cookies";
 
-/** Guards every page and keeps the access token fresh before rendering starts. */
+/** Pages anyone can open: shop signup and the rider's private schedule (the token in the URL is the key). */
+function isPublic(pathname: string): boolean {
+  return pathname === "/vendor/signup" || pathname.startsWith("/r/");
+}
+
+/**
+ * Guards every page and keeps the access token fresh before rendering starts.
+ * Admins live under `/`, vendors under `/vendor`; each is sent home if it wanders into the other area.
+ */
 export async function proxy(request: NextRequest) {
-  const isLogin = request.nextUrl.pathname === "/login";
+  const { pathname } = request.nextUrl;
+  if (isPublic(pathname)) return NextResponse.next();
+
+  const isLogin = pathname === "/login";
   const accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
 
-  if (isUsableAdminToken(accessToken)) {
-    return isLogin ? NextResponse.redirect(new URL("/", request.url)) : NextResponse.next();
-  }
+  const role = portalRoleOf(accessToken);
+  if (role) return isLogin ? redirectHome(request, role) : guardArea(request, role) ?? NextResponse.next();
   if (!refreshToken) return isLogin ? NextResponse.next() : toLogin(request);
 
   const outcome = await refreshSession(refreshToken);
-  // Backend unreachable: let the page render its error state instead of logging the admin out.
+  // Backend unreachable: let the page render its error state instead of logging the user out.
   if (outcome.kind === "unavailable") return NextResponse.next();
-  if (outcome.kind === "invalid" || outcome.session.user.role !== "ADMIN") {
+  if (outcome.kind === "invalid" || !isPortalRole(outcome.session.user.role)) {
     const response = isLogin ? NextResponse.next() : toLogin(request);
     clearSession(response.cookies);
     return response;
   }
 
-  if (isLogin) {
-    const response = NextResponse.redirect(new URL("/", request.url));
-    writeSession(response.cookies, outcome.session);
-    return response;
+  const freshRole = outcome.session.user.role;
+  const redirect = isLogin ? redirectHome(request, freshRole) : guardArea(request, freshRole);
+  if (redirect) {
+    writeSession(redirect.cookies, outcome.session);
+    return redirect;
   }
   // Forward the new tokens to this render as well as to the browser.
   request.cookies.set(ACCESS_COOKIE, outcome.session.accessToken);
@@ -39,6 +54,14 @@ export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } });
   writeSession(response.cookies, outcome.session);
   return response;
+}
+
+function redirectHome(request: NextRequest, role: PortalRole) {
+  return NextResponse.redirect(new URL(homeFor(role), request.url));
+}
+
+function guardArea(request: NextRequest, role: PortalRole): NextResponse | null {
+  return pathAllowed(role, request.nextUrl.pathname) ? null : redirectHome(request, role);
 }
 
 function toLogin(request: NextRequest) {

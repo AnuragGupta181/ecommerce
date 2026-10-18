@@ -27,8 +27,10 @@ function toInput(rider: Rider | null): RiderInput {
   };
 }
 
-/** Opens a modal to register a new rider or edit an existing one. */
-export function RiderFormButton({ rider }: { rider: Rider | null }) {
+type SaveRider = (id: string | null, input: RiderInput) => Promise<{ ok: true; data: unknown } | { ok: false; message: string; fieldErrors?: Record<string, string> }>;
+
+/** Opens a modal to register a new rider or edit an existing one. Shops pass their own save action. */
+export function RiderFormButton({ rider, save = saveRider }: { rider: Rider | null; save?: SaveRider }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState<RiderInput>(toInput(rider));
   const { pending, fieldErrors, setFieldErrors, run } = useAction();
@@ -62,7 +64,7 @@ export function RiderFormButton({ rider }: { rider: Rider | null }) {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button pending={pending} onClick={() => run(() => saveRider(rider?.id ?? null, input), { success: rider ? "Rider updated" : "Rider registered", onSuccess: () => setOpen(false) })}>
+            <Button pending={pending} onClick={() => run(() => save(rider?.id ?? null, input), { success: rider ? "Rider updated" : "Rider registered", onSuccess: () => setOpen(false) })}>
               Save
             </Button>
           </>

@@ -11,6 +11,9 @@ export type User = {
   avatarUrl: string | null;
   coinBalance: number;
   referralCode?: string | null;
+  vendorId?: string | null;
+  vendorRole?: "OWNER" | "STAFF" | null;
+  isSuperAdmin?: boolean;
   createdAt: string;
 };
 
@@ -34,6 +37,40 @@ export type ProductCard = {
   defaultVariantId: string | null;
   variantCount: number;
   isWishlisted: boolean;
+  /** Best shop for the shopper's location; null when no shop lists it. */
+  shop?: { vendorName: string; vendorSlug: string; distanceKm: number | null; isOpen: boolean; label: OfferLabel } | null;
+  shopCount?: number;
+};
+
+export type OfferLabel = "AVAILABLE" | "CLOSED" | "OUT_OF_STOCK" | "TOO_FAR";
+
+/** A shop branch as the backend describes it everywhere (`describeShop`). */
+export type Shop = {
+  branchId: string;
+  branchName: string;
+  vendorId: string;
+  vendorSlug: string;
+  vendorName: string;
+  logoUrl: string | null;
+  isOpen: boolean;
+  statusMessage: string | null;
+  distanceKm: number | null;
+  deliveryFee: number;
+  freeDeliveryAbove: number | null;
+  deliverable: boolean;
+};
+
+/** One shop selling a variant; `offers[]` arrive ranked, the first is the default. */
+export type ShopOffer = {
+  listingId: string;
+  variantId: string;
+  price: number;
+  mrp: number;
+  discountPercent: number;
+  inStock: boolean;
+  stockLeft: number | null;
+  label: OfferLabel;
+  shop: Shop;
 };
 
 export type CategoryNode = { id: string; name: string; slug: string; imageUrl: string | null; parentId: string | null; children?: CategoryNode[] };
@@ -51,6 +88,8 @@ export type HomeFeed = {
   banners: { carousel: Banner[]; strip: Banner[] };
   categories: CategoryNode[];
   rails: { key: string; title: string; items: ProductCard[]; query: Record<string, string | number> }[];
+  dailyEssentials?: Plan[];
+  shops?: Shop[];
 };
 
 export type Offer = { code: string; title: string; description: string; firstOrderOnly?: boolean; endsAt: string | null };
@@ -74,6 +113,7 @@ export type ProductDetail = {
     price: number;
     inStock: boolean;
     stock: number | null;
+    offers?: ShopOffer[];
   }[];
   price: number;
   mrp: number;
@@ -96,6 +136,7 @@ export type Facets = { brands: { slug: string; name: string; count: number }[]; 
 
 export type CartLine = {
   id: string;
+  listingId?: string | null;
   quantity: number;
   maxQuantity: number;
   available: boolean;
@@ -125,7 +166,10 @@ export type PriceSummary = {
   coinsToEarn: number;
 };
 
-export type Cart = { items: CartLine[]; summary: PriceSummary };
+export type Cart = { shop: Shop | null; items: CartLine[]; summary: PriceSummary; deliverable: boolean };
+
+/** Another shop that could fill the cart ("switch shop"). `itemsTotal` is the server's figure. */
+export type CartShopOption = Shop & { availableItems: number; totalItems: number; itemsTotal: number; isCurrent: boolean };
 
 export type CartCoupon = Offer & { minOrderValue: number; applicable: boolean; reason: string | null };
 
@@ -141,6 +185,9 @@ export type Address = {
   pincode: string;
   type: "HOME" | "WORK" | "OTHER";
   isDefault: boolean;
+  /** Delivery point (GPS or chosen location); drives distance and delivery fee. */
+  lat?: number | null;
+  lng?: number | null;
 };
 export type AddressInput = Omit<Address, "id">;
 
@@ -174,6 +221,9 @@ export type OrderDetail = {
   paymentMethod: "COD" | "UPI_ON_DELIVERY";
   paymentStatus: "PENDING" | "PAID" | "REFUNDED";
   shippingAddress: Omit<Address, "id" | "type" | "isDefault">;
+  vendorId?: string | null;
+  branchId?: string | null;
+  invoiceNumber?: string | null;
   itemsMrp: number;
   itemsTotal: number;
   couponCode: string | null;
@@ -240,4 +290,156 @@ export type ReferralSummary = {
   referrerBonus: number;
   refereeBonus: number;
   enabled: boolean;
+};
+
+/* ---------- Marketplace: shop page, daily essentials, subscriptions, support, chat ---------- */
+
+export type VendorPage = {
+  id: string;
+  slug: string;
+  shopName: string;
+  description: string | null;
+  logoUrl: string | null;
+  phone: string | null;
+  address: string | null;
+  subscriptionsEnabled: boolean;
+  branches: Shop[];
+  listingCount: number;
+  deliveredOrders: number;
+  planCount: number;
+};
+
+export type Period = "WEEKLY" | "MONTHLY";
+export type PaymentPlan = "UPFRONT" | "TWO_INSTALMENTS" | "END_OF_PERIOD";
+
+export type PlanPrice = { period: Period; pricePerDelivery: number; deliveryFee: number; deliveryFeeMode: "PER_DELIVERY" | "PER_PERIOD" };
+
+export type Plan = {
+  id: string;
+  name: string;
+  description: string;
+  quantityPerDelivery: number;
+  slots: string[];
+  capacity: number | null;
+  isActive: boolean;
+  prices: PlanPrice[];
+  product: { id: string; name: string; slug: string; variantLabel: string; imageUrl: string | null; regularPrice: number };
+  shop: Shop;
+  activeSubscribers: number;
+  isFull: boolean;
+};
+
+export type SubscriptionInput = {
+  planId: string;
+  period: Period;
+  startDate: string;
+  /** Bitmask, Mon = 1 … Sun = 64 (lib/weekdays.ts). */
+  weekdays: number;
+  quantity: number;
+  slot?: string;
+  skipDates: string[];
+  paymentPlan: PaymentPlan;
+  addressId?: string;
+};
+
+export type SubscriptionQuote = {
+  plan: Plan;
+  period: Period;
+  quantity: number;
+  weekdays: string[];
+  schedule: { startDate: string; endDate: string; dates: string[]; skipped: string[] };
+  terms: { quantity: number; pricePerDelivery: number; deliveryFee: number; deliveryFeeMode: "PER_DELIVERY" | "PER_PERIOD" };
+  breakdown: { deliveries: number; perDelivery: { goods: number; deliveryFee: number }; goodsTotal: number; deliveryTotal: number; total: number };
+  instalments: { sequence: number; dueDate: string; amount: number }[];
+  shop: Shop;
+};
+
+export type SubscriptionStatus = "ACTIVE" | "CANCELLED" | "COMPLETED";
+export type DeliveryStatus = "SCHEDULED" | "SKIPPED" | "DELIVERED" | "MISSED" | "CANCELLED";
+export type InstalmentStatus = "PAID" | "PARTLY_PAID" | "DUE" | "OVERDUE" | "UPCOMING";
+
+export type SubscriptionSummary = {
+  id: string;
+  number: string;
+  status: SubscriptionStatus;
+  period: Period;
+  startDate: string;
+  endDate: string;
+  weekdays: string[];
+  slot: string | null;
+  quantity: number;
+  vendor: { id: string; shopName: string; slug: string };
+  product: { name: string; variantLabel: string; imageUrl: string | null };
+  plan: { name: string };
+  nextDelivery: string | null;
+};
+
+export type SubscriptionDetail = Omit<SubscriptionSummary, "plan" | "nextDelivery"> & {
+  weekdayMask: number;
+  pricePerDelivery: number;
+  deliveryFee: number;
+  deliveryFeeMode: "PER_DELIVERY" | "PER_PERIOD";
+  paymentPlan: PaymentPlan;
+  shippingAddress: Omit<Address, "id" | "type" | "isDefault">;
+  cancelReason: string | null;
+  plan: { id: string; name: string; slots: string[] };
+  product: { name: string; slug: string; variantLabel: string; imageUrl: string | null };
+  vendor: { id: string; shopName: string; slug: string; phone: string | null; email: string | null };
+  branch: { id: string; name: string };
+  rider: { id: string; name: string; phone: string; whatsapp: string | null; vehicleType: string } | null;
+  deliveries: { id: string; date: string; status: DeliveryStatus; quantity: number; amount: number; deliveredAt: string | null; note: string | null; canChange: boolean }[];
+  pauses: { id: string; fromDate: string; toDate: string }[];
+  payments: { id: string; receiptNumber: string; amount: number; method: "CASH" | "UPI" | "OTHER"; note: string | null; paidAt: string }[];
+  ledger: {
+    charged: number;
+    paid: number;
+    balance: number;
+    expectedTotal: number;
+    dueNow: number;
+    instalments: { sequence: number; dueDate: string; amount: number; status: InstalmentStatus }[];
+  };
+  actions: { canCancel: boolean; canRenew: boolean };
+};
+
+export type TicketCategory = "ORDER_ISSUE" | "SUBSCRIPTION_ISSUE" | "APP_BUG" | "PAYMENT" | "ACCOUNT" | "VENDOR_COMPLAINT" | "OTHER";
+export type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+
+export type TicketSummary = {
+  id: string;
+  number: string;
+  category: TicketCategory;
+  level: "MINOR" | "MAJOR";
+  subject: string;
+  status: TicketStatus;
+  orderId: string | null;
+  subscriptionId: string | null;
+  lastMessageAt: string;
+  createdAt: string;
+  vendor: { id: string; shopName: string } | null;
+  order?: { orderNumber: string } | null;
+  messageCount?: number;
+};
+
+export type TicketDetail = TicketSummary & {
+  messages: { id: string; authorRole: "CUSTOMER" | "VENDOR" | "ADMIN" | "SYSTEM"; body: string; createdAt: string; mine: boolean }[];
+  handledBy?: "SHOP" | "PLATFORM";
+};
+
+export type TicketInput = { category: TicketCategory; subject: string; message: string; orderId?: string; subscriptionId?: string };
+
+export type Conversation = {
+  id: string;
+  lastMessage: string | null;
+  lastMessageAt: string;
+  unread: number;
+  vendor: { id: string; shopName: string; slug: string; logoUrl: string | null };
+};
+
+export type ChatMessage = {
+  id: string;
+  body: string;
+  senderRole: "CUSTOMER" | "VENDOR" | "SYSTEM";
+  mine: boolean;
+  createdAt: string;
+  order: { id: string; orderNumber: string; status: OrderStatus } | null;
 };

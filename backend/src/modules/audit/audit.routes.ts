@@ -4,13 +4,13 @@ import { ok } from "../../lib/http.js";
 import { paginationQuery } from "../../lib/pagination.js";
 import { superAdminOnly } from "../../middleware/auth.js";
 import { listAudit } from "./audit.service.js";
+import { optionalDayRange } from "../../lib/day-range.js";
 
 const auditQuery = paginationQuery.extend({
   vendorId: z.string().optional(),
   actorId: z.string().optional(),
   entity: z.string().max(40).optional(),
-  from: z.coerce.date().optional(),
-  to: z.coerce.date().optional(),
+  ...optionalDayRange,
 });
 
 /** Super admin: /admin/audit — who did what. */

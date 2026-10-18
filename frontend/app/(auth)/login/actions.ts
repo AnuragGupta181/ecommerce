@@ -2,15 +2,16 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { API_URL, REFRESH_COOKIE, clearSession, revokeRefreshToken, writeSession } from "@/lib/auth/session-cookies";
+import { API_URL, REFRESH_COOKIE, clearSession, homeFor, isPortalRole, pathAllowed, revokeRefreshToken, writeSession, type PortalRole } from "@/lib/auth/session-cookies";
 import type { Session } from "@/lib/types";
 
 export type LoginState = { error?: string; identifier?: string };
 
-/** Only same-origin paths, so `next` cannot redirect to another site. */
-function safeNext(value: FormDataEntryValue | null): string {
+/** Only same-origin paths inside the user's own area, so `next` cannot redirect elsewhere. */
+function safeNext(value: FormDataEntryValue | null, role: PortalRole): string {
   const next = typeof value === "string" ? value : "";
-  return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const sameOrigin = next.startsWith("/") && !next.startsWith("//");
+  return sameOrigin && pathAllowed(role, next.split("?")[0] ?? "/") ? next : homeFor(role);
 }
 
 export async function login(_prev: LoginState, formData: FormData): Promise<LoginState> {
@@ -33,13 +34,14 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     return { error: "The store server is not reachable. Try again in a moment.", identifier };
   }
 
-  if (session.user.role !== "ADMIN") {
+  const role = session.user.role;
+  if (!isPortalRole(role)) {
     await revokeRefreshToken(session.refreshToken);
-    return { error: "This account does not have admin access", identifier };
+    return { error: "This account is for the Haat app. Shop owners and admins sign in here.", identifier };
   }
 
   writeSession(await cookies(), session);
-  redirect(safeNext(formData.get("next")));
+  redirect(safeNext(formData.get("next"), role));
 }
 
 export async function logout() {

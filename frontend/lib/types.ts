@@ -1,6 +1,6 @@
 /** Shapes returned by the backend (see docs/API.md). Money fields are integer paise; dates are ISO strings. */
 
-export type Role = "CUSTOMER" | "ADMIN";
+export type Role = "CUSTOMER" | "ADMIN" | "VENDOR";
 
 export const ORDER_STATUSES = [
   "PLACED",
@@ -26,6 +26,9 @@ export type SessionUser = {
   phone: string | null;
   role: Role;
   avatarUrl: string | null;
+  vendorId?: string | null;
+  vendorRole?: "OWNER" | "STAFF" | null;
+  isSuperAdmin?: boolean;
 };
 export type Session = { user: SessionUser; accessToken: string; refreshToken: string };
 
@@ -171,6 +174,8 @@ export type OrderRow = {
   createdAt: string;
   user: { id: string; name: string; phone: string | null };
   rider: { id: string; name: string } | null;
+  vendor?: { id: string; shopName: string } | null;
+  branch?: { id: string; name: string } | null;
   itemCount: number;
 };
 
@@ -233,6 +238,8 @@ export type OrderDetail = {
     imageUrl: string | null;
     mrp: number;
     price: number;
+    /** Only shops see their own cost price. */
+    costPrice?: number | null;
     quantity: number;
     lineTotal: number;
   }[];
