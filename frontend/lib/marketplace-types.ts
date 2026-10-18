@@ -2,6 +2,9 @@
 
 import type { OrderDetail, OrderStatus, PaymentMethod, ShippingAddress, StockStatus } from "./types";
 
+/** The platform's own shop: the pre-marketplace catalog, seeded as a vendor (backend/prisma/seed-vendors.ts). */
+export const PLATFORM_SHOP_SLUG = "haat";
+
 export type VendorStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 export type PayMethod = "CASH" | "UPI" | "OTHER";
 
@@ -133,7 +136,7 @@ export type Listing = {
   status: StockStatus;
   updatedAt: string;
   branch: { id: string; name: string };
-  vendor: { id: string; shopName: string };
+  vendor: { id: string; slug: string; shopName: string };
   variant: { id: string; sku: string; label: string };
   product: { id: string; name: string; slug: string; isActive: boolean; category: string; imageUrl: string | null; ownedByVendor: boolean };
 };

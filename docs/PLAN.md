@@ -2,7 +2,7 @@
 
 > Living document. Every task is ticked as soon as it is finished and verified.
 > Last updated: 2026-10-18. **Marketplace backend complete** (Phases 8–11): vendors, shops, per-shop stock and per-km delivery, single-shop cart, subscriptions, tickets, chat, PDFs, payouts, Excel reports. Test logins: [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md).
-> **Live on Vercel:** API https://haat-api.vercel.app, portal https://haat-portal.vercel.app, app (web) https://haat-app.vercel.app. **Next:** Phase 14 leftovers (integration tests for subscriptions/tickets/payouts, FLOWS.md and ARCHITECTURE.md marketplace sections), Render/AWS later.
+> **Live on Vercel:** API https://haat-api.vercel.app, portal https://haat-portal.vercel.app, app (web) https://haat-app.vercel.app. **Next:** Render/AWS later; switch the live API to a fresh production database before real use.
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 
@@ -273,8 +273,8 @@ Build a whole phase, then test it; run the smoke test before every push.
 
 - [x] Unit tests: delivery fee, shop hours, subscription schedule/pricing/ledger, settlement, ticket routing
 - [x] Integration: catalog and checkout rewritten for shops (listings, vendor stock, commission, rider per shop)
-- [ ] Integration: subscriptions, tickets, payouts (pure rules are unit tested; flows covered by the smoke test next)
+- [x] Integration: subscriptions, tickets, payouts (`tests/integration/marketplace-ops.test.ts`)
 - [x] Smoke test extended to the marketplace flow (shop pick, cart conflict, vendor fulfilment, counter bill, chat, read-only admin stock)
-- [ ] Smoke test: subscriptions, tickets and payouts end to end
+- [x] Smoke test: subscriptions, tickets and payouts end to end (payouts preview only, no real settlement)
 - [x] API.md, DATABASE.md, AGENTS.md, MARKETPLACE.md updated
-- [ ] FLOWS.md, ARCHITECTURE.md (marketplace sections)
+- [x] FLOWS.md, ARCHITECTURE.md (marketplace sections)

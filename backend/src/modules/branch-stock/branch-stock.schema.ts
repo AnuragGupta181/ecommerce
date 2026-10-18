@@ -11,6 +11,8 @@ export const listingStockQuery = paginationQuery.extend({
   q: z.string().trim().max(100).optional(),
   status: z.enum(["all", "in", "low", "out"]).default("all"),
   branchId: z.string().optional(),
+  categoryId: z.string().optional(),
+  sort: z.enum(["name", "stock"]).default("name"),
   /** Admin only: which vendor's stock to view. */
   vendorId: z.string().optional(),
 });

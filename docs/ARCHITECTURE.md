@@ -98,6 +98,18 @@ route (auth guard) ─► handler: schema.parse(req) ─► service ─► prism
 | `settings` | store-level configuration (single row) |
 | `uploads` | image upload |
 | `dashboard` | admin analytics |
+| `vendors` / `branches` | shop signup and approval, profile, staff, branches with hours, radius and delivery rates |
+| `listings` / `branch-stock` | a shop's price and stock for a catalog variant; `branch-stock` is the only writer of shop stock |
+| `geo` | `X-Location` parsing (`requestPoint`) and distances |
+| `counter-sales` | walk-in bills that take shop stock |
+| `chat` | customer ↔ shop conversations (polled, no sockets) |
+| `subscriptions` | plans, subscribe/quote, skip and pause, daily drops, rider schedule links, payments and the ledger |
+| `tickets` | support tickets routed to the shop (MINOR) or the platform (MAJOR) |
+| `payouts` | settlement between the platform and a shop; pure maths in `settlement.ts` |
+| `documents` | invoice, receipt and statement PDFs behind short-lived signed links |
+| `reports` | Excel workbooks per shop and period |
+| `audit` / `admins` | audit log of vendor and admin actions; super-admin management of admins |
+| `cron` | the daily 18:00 IST job behind `CRON_SECRET`: tomorrow's delivery and instalment reminders, stock warnings, completing finished subscriptions |
 
 ### 3.3 Conventions
 
@@ -165,6 +177,28 @@ Browser ──(httpOnly cookies)──► Next.js server ──(Bearer JWT)─�
 - **Filters and pagination** live in URL `searchParams`. They are shareable and SSR-friendly.
 - **UI kit** in `components/ui`: Button, Input, Select, Textarea, Badge, Card, Table, Modal, Drawer, Tabs, Pagination, EmptyState, StatCard, Skeleton.
 
+### 4.1 Admin and vendor areas
+
+One Next.js app serves both portals:
+
+| Area | Path | Who | Guard |
+|---|---|---|---|
+| Admin | `/` (`app/(dashboard)/`) | `ADMIN`; super admins also get Admins and Audit | `requireAdmin()` / `requireSuperAdmin()` |
+| Vendor | `/vendor` (`app/vendor/(portal)/`) | `VENDOR` owners and staff | `requireVendor()` |
+| Public | `/vendor/signup`, `/r/<token>` (rider schedule) | anyone | none; the rider page is keyed by a private token |
+
+```
+request ─► proxy.ts ─► pathAllowed(role, path)? ─no─► homeFor(role)
+                         │yes
+                         ▼
+             page (Server Component) ─► lib/server/api.ts ─► /api/v1/admin/* or /api/v1/vendor/*
+```
+
+- The `haat_admin` cookie carries the display profile (`name`, `role`, `vendorRole`, `isSuperAdmin`) so the shell renders the right menu without a request. It is never trusted for authorization: the backend checks the JWT on every call.
+- Shared views (`OrderView`, `TicketView`, `PayoutPage`) take Server Actions as props. The admin and vendor pages pass actions that call their own endpoints, so one component serves both areas.
+- Files (invoices, receipts, statements, Excel reports) stream through `app/download/route.ts` and `app/vendor/download/route.ts`. They forward only allow-listed backend paths, adding the session token.
+- Admins see shop stock read-only. Stock changes only happen in the vendor area through `branch-stock`.
+
 ## 5. Mobile app architecture
 
 - Expo SDK 57 and Expo Router (file-based routes).
@@ -200,6 +234,14 @@ mic tap ─► useVoiceSearch()                      src/hooks/use-voice-search.
   - **This makes the app a native build.** The speech module is not in Expo Go, so run
     `npx expo run:android` or an EAS development build.
 
+### 5.1 Marketplace on the phone
+
+- **Location:** `src/lib/location-store.ts` holds the chosen point (GPS, served area or pincode). `src/lib/api.ts` sends it as `X-Location` on every request, and the server ranks shops and offers by it.
+- **One shop per cart:** `useAddToCartResolvingShop` catches `CART_SHOP_CONFLICT` and asks whether to replace the cart. Checkout handles `SHOP_UNAVAILABLE` (shop closed or out of range) by offering another shop.
+- **Live data without sockets:** `useLiveInterval` turns polling on only while the screen is focused. Product stock, the cart, open tickets and chat use it. A chat thread lives in the React Query cache and each poll fetches only messages `after` the newest one.
+- **Documents:** the app asks `/documents/:kind/:id/link` for a short-lived signed URL, rewrites its host with `reachableDocumentUrl` (the API may sit behind a LAN IP), and opens it with `expo-web-browser`.
+- **Web build:** react-native-web with `output: "single"`. `src/lib/secure-storage.ts` falls back to `localStorage` on web, where SecureStore does not exist. Voice search is native only.
+
 ## 6. Data model (summary)
 
 See [DATABASE.md](DATABASE.md) for every field.
@@ -213,6 +255,15 @@ User 1─* Review *─1 Product 1─* ProductVariant 1─* StockMovement
 Category 1─* Category (tree)   Category 1─* Product *─1 Brand
 Product 1─* ProductImage       Banner   Settings(1)   Notification   NotificationLog
 RefreshToken  PasswordReset
+
+Marketplace:
+Vendor 1─* Branch 1─* BranchVariantStock (listing) *─1 ProductVariant
+BranchVariantStock 1─* BranchStockMovement
+Vendor 1─* User (staff)   Vendor 1─* Rider   Order *─1 Vendor, *─1 Branch, *─1 Payout
+SubscriptionPlan *─1 BranchVariantStock      SubscriptionPlan 1─* SubscriptionPlanPrice
+Subscription 1─* SubscriptionDelivery *─1 Payout
+Subscription 1─* SubscriptionPause / SubscriptionPayment / SubscriptionInstalment
+Ticket 1─* TicketMessage   Conversation 1─* ChatMessage   CounterSale   AuditLog
 ```
 
 ## 7. Deployment architecture
@@ -225,3 +276,5 @@ GitHub ─► CI (lint, type-check, test)
    ├─► Admin: Vercel (or Docker)                                  SMTP provider
    └─► Mobile: EAS Build ─► Play Store / App Store, EAS Update    WhatsApp Cloud API
 ```
+
+Live today, all on Vercel: the API (`backend/`, serverless Express), the portal (`frontend/`) and the app's web build (`mobile/`, `expo export`). Render or AWS come later; see [DEPLOYMENT.md](DEPLOYMENT.md) §0.

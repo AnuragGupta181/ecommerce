@@ -15,7 +15,7 @@ import { Thumb } from "@/components/ui/thumb";
 import { formatCount, formatINR } from "@/lib/format";
 import { pageParam, param, type SearchParams } from "@/lib/search-params";
 import { api } from "@/lib/server/api";
-import type { Listing, ListingSummary, VendorRow } from "@/lib/marketplace-types";
+import { PLATFORM_SHOP_SLUG, type Listing, type ListingSummary, type VendorRow } from "@/lib/marketplace-types";
 import type { Category } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Inventory" };
@@ -25,7 +25,10 @@ const statusBadge = { in: { tone: "success", label: "In stock" }, low: { tone: "
 export default function InventoryPage({ searchParams }: PageProps<"/inventory">) {
   return (
     <>
-      <PageHeader title="Shop stock" description="Read-only: each shop manages its own prices and stock from the shop portal." />
+      <PageHeader
+        title="Shop stock"
+        description="Read-only: every shop's stock, including the platform's own shop. Each shop manages its prices and stock from the shop portal."
+      />
       <Suspense fallback={<TableSkeleton />}>
         <InventoryContent searchParams={searchParams} />
       </Suspense>
@@ -35,7 +38,13 @@ export default function InventoryPage({ searchParams }: PageProps<"/inventory">)
 
 async function InventoryContent({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
-  const filters = { q: param(params, "q"), vendorId: param(params, "vendorId"), categoryId: param(params, "categoryId"), status: param(params, "status") ?? "all" };
+  const filters = {
+    q: param(params, "q"),
+    vendorId: param(params, "vendorId"),
+    categoryId: param(params, "categoryId"),
+    status: param(params, "status") ?? "all",
+    sort: param(params, "sort") ?? "name",
+  };
   const [{ items, meta }, summary, categories, vendors] = await Promise.all([
     api.list<Listing>("/admin/inventory", { ...filters, page: pageParam(params), limit: 25 }),
     api.get<ListingSummary>("/admin/inventory/summary", { vendorId: filters.vendorId }),
@@ -76,6 +85,10 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<Search
             <option value="low">Low stock</option>
             <option value="out">Out of stock</option>
           </FilterSelect>
+          <FilterSelect name="sort" defaultValue={filters.sort}>
+            <option value="name">Sort: name</option>
+            <option value="stock">Sort: lowest stock first</option>
+          </FilterSelect>
         </FilterBar>
         {items.length === 0 ? (
           <EmptyState icon={Boxes} title="Nothing matches these filters" />
@@ -106,7 +119,10 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<Search
                       </Link>
                     </Td>
                     <Td>
-                      <p>{row.vendor.shopName}</p>
+                      <p className="flex items-center gap-2">
+                        {row.vendor.shopName}
+                        {row.vendor.slug === PLATFORM_SHOP_SLUG ? <Badge tone="neutral">Platform shop</Badge> : null}
+                      </p>
                       <p className="text-xs text-ink-500">{row.branch.name}</p>
                     </Td>
                     <Td numeric>{formatINR(row.price)}</Td>

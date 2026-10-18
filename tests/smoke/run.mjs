@@ -8,7 +8,8 @@
  *
  * Env: API_URL (default http://localhost:4000/api/v1), ADMIN_SEED_EMAIL, ADMIN_SEED_PASSWORD,
  * TEST_ACCOUNT_PASSWORD (defaults to the documented test password; see docs/TEST_ACCOUNTS.md).
- * It creates a throwaway customer (smoke+<timestamp>@haat.test) and two orders; run it on a dev database.
+ * It creates a throwaway customer (smoke+<timestamp>@haat.test), two orders, a closed ticket and a
+ * cancelled subscription; payouts are only previewed. Run it on a dev database.
  */
 
 const API = process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 4000}/api/v1`;
@@ -301,6 +302,17 @@ async function main() {
     hasKeys(data, ["vendor", "branch", "commissionAmount", "vendorEarning", "invoiceNumber"], "admin order detail");
     assert(data.vendor.id === vendor.user.vendorId, "wrong vendor on order");
   });
+  // Read-only: creating a payout would settle real dev-database orders.
+  await step("payout preview includes the delivered order, same for admin and shop", async () => {
+    const istToday = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+    const period = `from=${istToday}&to=${istToday}`;
+    const adminView = await get(`/admin/payouts/preview/${vendor.user.vendorId}?${period}`, at);
+    hasKeys(adminView, ["orderCount", "deliveryCount", "grossAmount", "commissionAmount", "netAmount", "orders", "drops"], "settlement preview");
+    assert(adminView.orders.some((o) => o.id === order.id), "delivered order missing from the preview");
+    const shopView = await get(`/vendor/payouts/upcoming?${period}`, vt);
+    assert(shopView.netAmount === adminView.netAmount, `shop sees ${shopView.netAmount}, admin ${adminView.netAmount}`);
+    await call("GET", "/admin/payouts", { token: vt, expect: [403] });
+  });
   await step("admin inventory is read-only by vendor", async () => {
     const rows = await call("GET", `/admin/inventory?vendorId=${vendor.user.vendorId}&limit=5`, { token: at });
     assert(rows.data.length > 0, "no listings");
@@ -333,6 +345,40 @@ async function main() {
     const vendorView = await get(`/vendor/messages/${thread.id}/messages`, vt);
     assert(vendorView.messages.some((m) => m.body === "Thanks, milk was fresh!"), "vendor did not get the message");
   });
+  await step("order issue ticket goes to the shop and back", async () => {
+    const ticket = await post("/tickets", { category: "ORDER_ISSUE", subject: "Smoke ticket", message: "Automated smoke test ticket", orderId: order.id }, token);
+    hasKeys(ticket, ["id", "number", "level", "status", "messages", "handledBy"], "ticket");
+    assert(ticket.level === "MINOR" && ticket.handledBy === "SHOP", `routed to ${ticket.handledBy}`);
+    const shopView = await get(`/vendor/tickets/${ticket.id}`, vt);
+    assert(shopView.context?.order?.id === order.id, "shop does not see the order context");
+    const replied = await call("POST", `/vendor/tickets/${ticket.id}/messages`, { token: vt, body: { body: "Smoke reply from the shop" }, expect: [201] });
+    assert(replied.data.status === "IN_PROGRESS", `status ${replied.data.status}`);
+    const closed = await patch(`/tickets/${ticket.id}/status`, { status: "CLOSED" }, token);
+    assert(closed.status === "CLOSED", "customer could not close");
+  });
+
+  console.log("\nCustomer: subscription");
+  await step("subscribe, skip a day, shop sees it, cancel", async () => {
+    const plans = await call("GET", `/plans?vendor=${nearest.shop.vendorSlug}&limit=10`);
+    const plan = plans.data.find((p) => p.prices?.some((price) => price.period === "WEEKLY"));
+    assert(plan, "no weekly plan at the shop");
+    const istToday = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+    const plusDays = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+    const terms = { planId: plan.id, period: "WEEKLY", startDate: plusDays(istToday, 3), weekdays: 127, quantity: 1, addressId: address.id };
+    const quoted = await post("/subscriptions/quote", terms, token);
+    hasKeys(quoted, ["schedule", "breakdown", "instalments", "shop"], "subscription quote");
+    assert(quoted.breakdown.deliveries === 7, `expected 7 drops, got ${quoted.breakdown.deliveries}`);
+    const sub = await post("/subscriptions", terms, token);
+    hasKeys(sub, ["id", "number", "deliveries", "ledger", "actions"], "subscription");
+    assert(sub.ledger.expectedTotal === quoted.breakdown.total, `ledger ${sub.ledger.expectedTotal} ≠ quote ${quoted.breakdown.total}`);
+    const skipped = await post(`/subscriptions/${sub.id}/skip`, { date: plusDays(istToday, 4) }, token);
+    assert(skipped.ledger.expectedTotal < quoted.breakdown.total, "skip did not reduce the total");
+    const shopList = await call("GET", `/vendor/subscriptions?q=${sub.number}`, { token: vt });
+    assert(shopList.data.some((row) => row.id === sub.id), "shop does not see the subscription");
+    const cancelled = await post(`/subscriptions/${sub.id}/cancel`, { reason: "Smoke test cleanup" }, token);
+    assert(cancelled.status === "CANCELLED", `status ${cancelled.status}`);
+  });
+
   await step("write a review", async () => {
     await post("/reviews", { productId: product.id, rating: 5, title: "Smoke test", comment: "Automated smoke test review" }, token);
   });

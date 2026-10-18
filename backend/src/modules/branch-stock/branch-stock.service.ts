@@ -100,7 +100,7 @@ const listingSelect = {
   lowStockThreshold: true,
   isAvailable: true,
   updatedAt: true,
-  branch: { select: { id: true, name: true, vendor: { select: { id: true, shopName: true } } } },
+  branch: { select: { id: true, name: true, vendor: { select: { id: true, slug: true, shopName: true } } } },
   variant: {
     select: {
       id: true,
@@ -164,15 +164,19 @@ export async function listListings(scope: { vendorId?: string }, query: ListingS
       ],
     });
   }
+  // A parent category also matches its sub-categories.
+  if (query.categoryId) and.push({ variant: { product: { OR: [{ categoryId: query.categoryId }, { category: { parentId: query.categoryId } }] } } });
   if (query.status === "low") and.push({ stock: { gt: 0, lte: prisma.branchVariantStock.fields.lowStockThreshold } });
   if (query.status === "out") and.push({ stock: 0 });
   if (query.status === "in") and.push({ stock: { gt: prisma.branchVariantStock.fields.lowStockThreshold } });
 
+  const byName = { variant: { product: { name: "asc" } } } as const;
   const where: Prisma.BranchVariantStockWhereInput = { AND: and };
   const [rows, total] = await Promise.all([
     prisma.branchVariantStock.findMany({
       where,
-      orderBy: [{ stock: "asc" }, { variant: { product: { name: "asc" } } }],
+      // Alphabetical by default; "lowest stock first" otherwise fills page one with empty rows.
+      orderBy: query.sort === "stock" ? [{ stock: "asc" }, byName] : [byName, { variant: { sortOrder: "asc" } }],
       ...toSkipTake(query),
       select: listingSelect,
     }),

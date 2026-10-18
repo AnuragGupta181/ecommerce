@@ -12,7 +12,7 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, THead, Td, Th, Tr } from "@/components/ui/table";
 import { Thumb } from "@/components/ui/thumb";
 import { formatDate, titleCase } from "@/lib/format";
-import type { VendorRow } from "@/lib/marketplace-types";
+import { PLATFORM_SHOP_SLUG, type VendorRow } from "@/lib/marketplace-types";
 import { vendorStatusTone } from "@/lib/status-tones";
 import { pageParam, param, type SearchParams } from "@/lib/search-params";
 import { api } from "@/lib/server/api";
@@ -67,7 +67,10 @@ async function VendorsTable({ searchParams }: { searchParams: Promise<SearchPara
                     <Link href={`/vendors/${vendor.id}`} className="flex items-center gap-3">
                       <Thumb src={vendor.logoUrl} alt={vendor.shopName} size={36} />
                       <span>
-                        <span className="font-semibold hover:underline">{vendor.shopName}</span>
+                        <span className="flex items-center gap-2">
+                          <span className="font-semibold hover:underline">{vendor.shopName}</span>
+                          {vendor.slug === PLATFORM_SHOP_SLUG ? <Badge tone="neutral">Platform shop</Badge> : null}
+                        </span>
                         <span className="block text-xs text-ink-500">Joined {formatDate(vendor.createdAt)}</span>
                       </span>
                     </Link>

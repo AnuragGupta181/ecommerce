@@ -10,7 +10,8 @@ export default function TabsLayout() {
 
   return (
     <Tabs>
-      <TabSlot />
+      {/* The slot's default flexShrink: 0 lets a tab grow to its content height on web, so nothing scrolls. */}
+      <TabSlot style={{ flexShrink: 1, minHeight: 0 }} />
       <TabList style={[pillBarStyles.bar, { bottom: insets.bottom + 16 }]}>
         <TabTrigger name="index" href="/" asChild>
           <PillTab icon={House} label="Home" />

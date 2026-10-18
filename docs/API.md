@@ -149,7 +149,7 @@ Passwords must be at least 8 characters and contain at least one letter and one 
 | GET/POST | `/categories` | flat list with counts / create `{ name, parentId?, imageUrl?, sortOrder, isActive }` |
 | PATCH/DELETE | `/categories/:id` | delete blocked while it has products or children |
 | GET/POST, PATCH/DELETE | `/brands`, `/brands/:id` | — |
-| GET | `/inventory?vendorId=&branchId=&status=all\|in\|low\|out&q=` | **read-only** shop stock (no cost prices); stock belongs to vendors |
+| GET | `/inventory?vendorId=&branchId=&categoryId=&status=all\|in\|low\|out&sort=name\|stock&q=` | **read-only** shop stock (no cost prices); stock belongs to vendors. `sort` defaults to `name`; `stock` lists lowest first. A parent `categoryId` includes its sub-categories |
 | GET | `/inventory/summary?vendorId=&branchId=` | `{ lowStock, outOfStock, totalUnits, stockValue }` |
 | GET | `/inventory/listings/:id/movements` | stock log of one listing |
 | GET | `/orders?q=&status=&riderId=&vendorId=&branchId=&from=&to=` | includes `vendor`, `branch` |
@@ -236,7 +236,7 @@ All routes are scoped to the caller's shop. Suspended or rejected shops are read
 | GET / POST / DELETE | `/staff`, `/staff/:id` | staff logins (owner only) |
 | GET / POST / PATCH | `/branches`, `/branches/:id` | location, hours (`opensAt`/`closesAt`), radius, `deliveryRatePerKm`, `minDeliveryFee`, `freeDeliveryAbove` |
 | PATCH | `/branches/:id/online` | `{ isOnline, reason?, offlineMessage? }` |
-| GET | `/listings?branchId=&status=&q=` | own stock with cost prices |
+| GET | `/listings?branchId=&categoryId=&status=&sort=name\|stock&q=` | own stock with cost prices |
 | GET | `/listings/summary`, `/listings/catalog?q=&branchId=` | stock summary / catalog search to list existing products |
 | POST / PATCH / DELETE | `/listings`, `/listings/:id` | `{ branchId, variantId, price, mrp, costPrice?, stock, lowStockThreshold, isAvailable }` |
 | POST | `/listings/:id/adjust` | `{ mode: IN \| OUT \| SET, quantity, reason }` (manual change, logged) |
