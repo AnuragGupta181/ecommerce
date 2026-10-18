@@ -2,7 +2,7 @@
 
 > Living document. Every task is ticked as soon as it is finished and verified.
 > Last updated: 2026-10-18. **Marketplace backend complete** (Phases 8–11): vendors, shops, per-shop stock and per-km delivery, single-shop cart, subscriptions, tickets, chat, PDFs, payouts, Excel reports. Test logins: [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md).
-> **Next:** Phase 13 (mobile), then deploy (backend and portal on Vercel now; Render/AWS later). Phase 12 portal is done.
+> **Next:** deploy (backend, portal and the app's web build on Vercel now; Render/AWS later). Phases 12 (portal) and 13 (mobile) are done.
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo
 
@@ -264,10 +264,10 @@ Build a whole phase, then test it; run the smoke test before every push.
 
 ## Phase 13 — Mobile
 
-- [ ] Location: detect / manual, delivering-to bar, address coordinates
-- [ ] Offers on product detail, shop page, closed / out-of-stock labels, cart shop header + switch shop
-- [ ] Daily essentials, subscribe flow (period, days, slot, skip dates, breakdown), my subscriptions (calendar, pause, skip, ledger, receipts)
-- [ ] Tickets (create, list, thread), chat (conversations, thread), invoices; live stock polling
+- [x] Location: detect (GPS) / pick an area / pincode or "lat, lng", "Delivering to" bar, `X-Location` on every request, address delivery pin
+- [x] Shop offers on product detail (pick a shop, add or buy from it), shop page, open / closed / out-of-stock / too-far labels, shop line on product cards, cart shop header + switch shop, one-shop cart conflict prompt, `SHOP_UNAVAILABLE` at checkout
+- [x] Daily essentials and nearby shops on home, subscribe flow (period, days, start, slot, quantity, skip dates, payment plan, server breakdown), my subscriptions (calendar, skip / restore, pause / undo, ledger, receipts, statement, cancel, renew)
+- [x] Tickets (create with order / subscription, list, thread, close), chat (inbox, thread with `after=` polling, unread badge), invoice / receipt / statement PDFs via signed links; product and cart poll while visible
 
 ## Phase 14 — Quality and docs
 

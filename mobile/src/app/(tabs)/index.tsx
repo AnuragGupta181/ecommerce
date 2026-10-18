@@ -3,6 +3,9 @@ import { Bell } from "lucide-react-native";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { BannerCarousel } from "@/components/home/banner-carousel";
 import { CategoryStrip } from "@/components/home/category-strip";
+import { DailyEssentials } from "@/components/home/daily-essentials";
+import { NearbyShops } from "@/components/home/nearby-shops";
+import { LocationBar } from "@/components/location/location-bar";
 import { TAB_BAR_CLEARANCE } from "@/components/navigation/pill-tab-bar";
 import { ProductRail } from "@/components/product/product-rail";
 import { Screen } from "@/components/ui/screen";
@@ -37,6 +40,7 @@ export default function HomeScreen() {
         </Pressable>
       </View>
       <View style={styles.search}>
+        <LocationBar />
         <SearchBar />
       </View>
       {home.isPending ? (
@@ -50,6 +54,8 @@ export default function HomeScreen() {
         >
           <CategoryStrip categories={home.data.categories} />
           <BannerCarousel banners={home.data.banners.carousel} />
+          <DailyEssentials plans={home.data.dailyEssentials ?? []} />
+          <NearbyShops shops={home.data.shops ?? []} />
           {home.data.rails.map((rail, i) => (
             <View key={rail.key} style={styles.section}>
               <ProductRail title={rail.title} products={rail.items} onSeeAll={() => openListing(rail.query, rail.title)} />
@@ -76,7 +82,7 @@ const styles = StyleSheet.create({
   greeting: { flex: 1 },
   bell: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
   unread: { position: "absolute", top: 9, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger },
-  search: { padding: spacing.lg, paddingBottom: spacing.md },
+  search: { padding: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
   content: { gap: spacing.xxl, paddingBottom: TAB_BAR_CLEARANCE },
   section: { gap: spacing.xxl },
   strip: { marginHorizontal: spacing.lg, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.brand100, gap: 2 },

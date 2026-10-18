@@ -1,6 +1,7 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
+import { useLiveInterval } from "./use-live-interval";
 import type { CategoryNode, Facets, HomeFeed, ProductCard, ProductDetail, ReviewItem, StoreSettings, Suggestions } from "@/lib/types";
 
 export type ListingQuery = {
@@ -14,6 +15,8 @@ export type ListingQuery = {
   inStock?: boolean;
   sort?: string;
   ids?: string;
+  /** One shop's items at its own prices. */
+  vendor?: string;
 };
 
 /** Personalised fields (wishlist hearts) depend on who is signed in. */
@@ -48,9 +51,11 @@ export function useFacets(query: ListingQuery) {
   return useQuery({ queryKey: ["facets", { ...query, brand: undefined }], queryFn: () => api.get<Facets>("/products/facets", { ...query, brand: undefined }) });
 }
 
+/** Offers (price, stock, open/closed per shop) change under the shopper, so the screen polls while visible. */
 export function useProduct(slug: string) {
   const viewer = useViewer();
-  return useQuery({ queryKey: ["product", slug, viewer], queryFn: () => api.get<ProductDetail>(`/products/${slug}`) });
+  const refetchInterval = useLiveInterval();
+  return useQuery({ queryKey: ["product", slug, viewer], queryFn: () => api.get<ProductDetail>(`/products/${slug}`), refetchInterval });
 }
 
 export function useSimilarProducts(slug: string) {

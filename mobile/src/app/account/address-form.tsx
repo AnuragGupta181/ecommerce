@@ -8,8 +8,10 @@ import { Screen } from "@/components/ui/screen";
 import { StackHeader } from "@/components/ui/stack-header";
 import { Text } from "@/components/ui/text";
 import { useAddresses, useSaveAddress } from "@/hooks/use-account";
+import { detectCurrentPlace } from "@/hooks/use-location";
 import { errorMessage, fieldErrors } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
+import { useLocationStore } from "@/lib/location-store";
 import { colors, spacing } from "@/lib/theme";
 import type { AddressInput } from "@/lib/types";
 
@@ -20,6 +22,9 @@ export default function AddressFormScreen() {
   const user = useAuthStore((state) => state.user);
   const existing = useAddresses().data?.find((address) => address.id === id);
   const save = useSaveAddress();
+  // A new address starts at the shopper's chosen delivery point; GPS can refine it.
+  const deliveryPoint = useLocationStore((state) => state.location);
+  const [locating, setLocating] = useState(false);
   const [form, setForm] = useState<AddressInput>(() => ({
     name: existing?.name ?? user?.name ?? "",
     phone: existing?.phone ?? user?.phone ?? "",
@@ -31,7 +36,31 @@ export default function AddressFormScreen() {
     pincode: existing?.pincode ?? "",
     type: existing?.type ?? "HOME",
     isDefault: existing?.isDefault ?? false,
+    lat: existing?.lat ?? deliveryPoint?.lat ?? null,
+    lng: existing?.lng ?? deliveryPoint?.lng ?? null,
   }));
+
+  /** The pin decides distance and delivery fee, so it matters more than the typed text. */
+  const useCurrentLocation = async () => {
+    setLocating(true);
+    try {
+      const place = await detectCurrentPlace();
+      setForm((current) => ({
+        ...current,
+        lat: place.lat,
+        lng: place.lng,
+        line1: current.line1 || place.street || "",
+        line2: current.line2 || place.area || "",
+        city: current.city || place.city || "",
+        state: current.state || place.state || "",
+        pincode: current.pincode || place.pincode || "",
+      }));
+    } catch (error) {
+      Alert.alert("Couldn't get your location", errorMessage(error));
+    } finally {
+      setLocating(false);
+    }
+  };
   const errors = fieldErrors(save.error);
   const set = <K extends keyof AddressInput>(key: K) => (value: AddressInput[K]) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -48,6 +77,10 @@ export default function AddressFormScreen() {
       <StackHeader title={id ? "Edit address" : "Add address"} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Button title={form.lat != null ? "Update pin to my current location" : "Use my current location"} variant="outline" loading={locating} onPress={useCurrentLocation} />
+          <Text variant="small" color={colors.ink500}>
+            {form.lat != null && form.lng != null ? `Delivery pin: ${form.lat.toFixed(4)}, ${form.lng.toFixed(4)}` : "No delivery pin yet. Shops use it to work out distance and delivery charge."}
+          </Text>
           <Input label="Full name" value={form.name} onChangeText={set("name")} error={errors.name} />
           <Input label="Phone" value={form.phone} onChangeText={set("phone")} keyboardType="phone-pad" error={errors.phone} />
           <Input label="House no., building, street" value={form.line1} onChangeText={set("line1")} error={errors.line1} />

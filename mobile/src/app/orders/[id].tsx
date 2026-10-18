@@ -17,6 +17,7 @@ import { useCancelOrder, useOrder, useRequestReturn } from "@/hooks/use-orders";
 import { errorMessage } from "@/lib/api";
 import { formatDate, formatINR } from "@/lib/format";
 import { colors, radius, spacing } from "@/lib/theme";
+import { OrderShopCard } from "@/components/orders/order-shop-card";
 
 const CANCEL_REASONS = ["Ordered by mistake", "Found a better price", "Delivery is taking too long", "Want to change items or address"];
 const RETURN_REASONS = ["Item damaged or defective", "Wrong item delivered", "Item not as described", "Size or fit issue"];
@@ -113,6 +114,8 @@ export default function OrderDetailScreen() {
             </View>
           ))}
         </Card>
+
+        <OrderShopCard order={o} />
 
         <Card title="Delivery address">
           <AddressLines address={o.shippingAddress} />

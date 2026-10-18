@@ -20,13 +20,14 @@ import { useAddresses } from "@/hooks/use-account";
 import { usePlaceOrder, useQuote, type CheckoutInput } from "@/hooks/use-cart";
 import { useSettings } from "@/hooks/use-catalog";
 import { errorMessage } from "@/lib/api";
+import { isShopUnavailable } from "@/lib/cart-conflict";
 import { formatINR } from "@/lib/format";
 import { colors, radius, spacing } from "@/lib/theme";
 
 type PaymentMethod = "COD" | "UPI_ON_DELIVERY";
 
 export default function CheckoutScreen() {
-  const params = useLocalSearchParams<{ coupon?: string; useCoins?: string; variantId?: string; quantity?: string }>();
+  const params = useLocalSearchParams<{ coupon?: string; useCoins?: string; variantId?: string; quantity?: string; branchId?: string }>();
   const [coupon, setCoupon] = useState(params.coupon || undefined);
   const [useCoins, setUseCoins] = useState(params.useCoins === "1");
   const [couponsOpen, setCouponsOpen] = useState(false);
@@ -36,13 +37,14 @@ export default function CheckoutScreen() {
 
   // "Buy now" checks out a single item without touching the cart.
   const items = params.variantId ? [{ variantId: params.variantId, quantity: Number(params.quantity) || 1 }] : undefined;
-  const input: CheckoutInput = { couponCode: coupon, useCoins: useCoins || undefined, items };
-  const quote = useQuote(input);
   const addresses = useAddresses();
+  const address = addresses.data?.find((a) => a.id === addressId) ?? addresses.data?.find((a) => a.isDefault) ?? addresses.data?.[0];
+  // The quote is priced for the chosen address, so the delivery fee matches what the order will charge.
+  const input: CheckoutInput = { couponCode: coupon, useCoins: useCoins || undefined, items, branchId: items && params.branchId ? params.branchId : undefined };
+  const quote = useQuote({ ...input, addressId: address?.id });
   const settings = useSettings();
   const place = usePlaceOrder();
 
-  const address = addresses.data?.find((a) => a.id === addressId) ?? addresses.data?.find((a) => a.isDefault) ?? addresses.data?.[0];
   const methods: { value: PaymentMethod; label: string; description: string }[] = [
     ...(settings.data?.codEnabled !== false ? [{ value: "COD" as const, label: "Cash on delivery", description: "Pay in cash when your order arrives" }] : []),
     ...(settings.data?.upiOnDeliveryEnabled !== false ? [{ value: "UPI_ON_DELIVERY" as const, label: "UPI on delivery", description: "Scan and pay the rider at your door" }] : []),
@@ -56,7 +58,10 @@ export default function CheckoutScreen() {
       {
         onSuccess: (order) =>
           router.replace({ pathname: "/order-success", params: { id: order.id, orderNumber: order.orderNumber, payable: String(order.payable), coins: String(order.coinsToEarn) } }),
-        onError: (error) => Alert.alert("Couldn't place order", errorMessage(error)),
+        onError: (error) =>
+          isShopUnavailable(error)
+            ? Alert.alert("Shop can't deliver now", `${errorMessage(error)} Go back to your cart to switch to another shop.`, [{ text: "Open cart", onPress: () => router.replace("/cart") }, { text: "Close", style: "cancel" }])
+            : Alert.alert("Couldn't place order", errorMessage(error)),
       },
     );
   };

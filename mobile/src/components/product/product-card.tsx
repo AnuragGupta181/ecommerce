@@ -7,6 +7,7 @@ import { RatingChip } from "@/components/ui/rating-chip";
 import { Text } from "@/components/ui/text";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { useToggleWishlist } from "@/hooks/use-wishlist";
+import { formatDistance } from "@/lib/geo";
 import { colors, radius, spacing } from "@/lib/theme";
 import type { ProductCard as Card } from "@/lib/types";
 
@@ -51,10 +52,18 @@ export function ProductCard({ product, width }: { product: Card; width?: number 
         </Text>
         <RatingChip rating={product.ratingAvg} count={product.ratingCount} />
         <Price price={product.price} mrp={product.mrp} discountPercent={product.discountPercent} />
+        {product.shop ? (
+          <Text variant="small" color={product.shop.label === "AVAILABLE" ? colors.ink500 : colors.warning} numberOfLines={1}>
+            {[product.shop.vendorName, formatDistance(product.shop.distanceKm), SHOP_STATE[product.shop.label]].filter(Boolean).join(" · ")}
+            {product.shopCount && product.shopCount > 1 ? ` +${product.shopCount - 1}` : ""}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );
 }
+
+const SHOP_STATE = { AVAILABLE: null, CLOSED: "closed now", OUT_OF_STOCK: "out of stock", TOO_FAR: "too far" } as const;
 
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, overflow: "hidden" },

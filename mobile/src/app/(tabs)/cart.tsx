@@ -4,6 +4,7 @@ import { useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CartLineItem } from "@/components/cart/cart-line-item";
+import { CartShopHeader } from "@/components/cart/cart-shop-header";
 import { CouponSheet } from "@/components/cart/coupon-sheet";
 import { PayBar } from "@/components/cart/pay-bar";
 import { PriceDetails } from "@/components/cart/price-details";
@@ -25,7 +26,7 @@ export default function CartScreen() {
   const cart = useCart({ coupon, useCoins });
 
   const items = cart.data?.items ?? [];
-  const blocked = items.some((line) => !line.available);
+  const blocked = items.some((line) => !line.available) || cart.data?.deliverable === false;
 
   return (
     <Screen>
@@ -51,6 +52,7 @@ export default function CartScreen() {
             contentContainerStyle={styles.content}
             refreshControl={<RefreshControl refreshing={cart.isRefetching} onRefresh={() => cart.refetch()} tintColor={colors.brand600} />}
           >
+            {cart.data.shop ? <CartShopHeader shop={cart.data.shop} deliverable={cart.data.deliverable} /> : null}
             {items.map((line) => (
               <CartLineItem key={line.id} line={line} />
             ))}
@@ -67,7 +69,7 @@ export default function CartScreen() {
           <PayBar
             payable={cart.data.summary.payable}
             savings={cart.data.summary.totalSavings}
-            label={blocked ? "Remove unavailable items" : "Place order"}
+            label={cart.data.deliverable === false ? "Shop can't deliver now" : blocked ? "Remove unavailable items" : "Place order"}
             disabled={blocked}
             bottomOffset={TAB_BAR_CLEARANCE - spacing.xl + insets.bottom}
             onPress={() =>

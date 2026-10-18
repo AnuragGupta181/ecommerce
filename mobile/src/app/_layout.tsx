@@ -15,6 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { LoginSheet } from "@/components/auth/login-sheet";
 import { useAuthStore } from "@/lib/auth-store";
 import { deviceStore } from "@/lib/device-store";
+import { useLocationStore } from "@/lib/location-store";
 import { queryClient } from "@/lib/query-client";
 import { colors } from "@/lib/theme";
 
@@ -28,11 +29,14 @@ export default function RootLayout() {
     PlusJakartaSans_800ExtraBold,
   });
   const hydrated = useAuthStore((state) => state.hydrated);
+  // Prices depend on location, so the first requests must already carry the saved point.
+  const locationHydrated = useLocationStore((state) => state.hydrated);
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
-  const ready = fontsLoaded && hydrated && onboarded !== null;
+  const ready = fontsLoaded && hydrated && locationHydrated && onboarded !== null;
 
   useEffect(() => {
     useAuthStore.getState().hydrate();
+    useLocationStore.getState().hydrate();
     deviceStore
       .isOnboarded()
       .catch(() => true)

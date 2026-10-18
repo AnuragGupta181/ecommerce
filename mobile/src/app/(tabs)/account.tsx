@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Bell, Coins, HelpCircle, LogOut, MapPin, Package, Share2, Tag, UserRound } from "lucide-react-native";
+import { Bell, Coins, HelpCircle, LifeBuoy, LogOut, MapPin, MessageCircle, Package, Repeat, Share2, Tag, UserRound } from "lucide-react-native";
 import { Alert, Linking, ScrollView, StyleSheet, View } from "react-native";
 import { TAB_BAR_CLEARANCE } from "@/components/navigation/pill-tab-bar";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Text } from "@/components/ui/text";
 import { useMe, useUnreadCount } from "@/hooks/use-account";
 import { useLogout } from "@/hooks/use-auth";
 import { useSettings } from "@/hooks/use-catalog";
+import { useChatUnread } from "@/hooks/use-support";
 import { useAuthStore } from "@/lib/auth-store";
 import { colors, radius, spacing } from "@/lib/theme";
 
@@ -18,6 +19,7 @@ export default function AccountScreen() {
   const unread = useUnreadCount();
   const settings = useSettings();
   const logout = useLogout();
+  const chatUnread = useChatUnread();
 
   const help = () => {
     const phone = settings.data?.supportPhone;
@@ -65,6 +67,9 @@ export default function AccountScreen() {
         {user ? (
           <MenuGroup>
             <MenuRow icon={Package} label="My orders" onPress={() => router.push("/orders")} />
+            <MenuRow icon={Repeat} label="My subscriptions" onPress={() => router.push("/subscriptions")} />
+            <MenuRow icon={MessageCircle} label="Messages" hint={chatUnread.data ? `${chatUnread.data} new` : undefined} onPress={() => router.push("/chat")} />
+            <MenuRow icon={LifeBuoy} label="Support tickets" onPress={() => router.push("/tickets")} />
             <MenuRow icon={MapPin} label="Saved addresses" onPress={() => router.push("/account/addresses")} />
             <MenuRow icon={Coins} label="Haat coins" hint={String(user.coinBalance)} onPress={() => router.push("/account/coins")} />
             <MenuRow icon={Share2} label="Refer & earn" hint={user.referralCode ?? undefined} onPress={() => router.push("/account/profile")} />

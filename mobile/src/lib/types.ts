@@ -224,6 +224,9 @@ export type OrderDetail = {
   vendorId?: string | null;
   branchId?: string | null;
   invoiceNumber?: string | null;
+  distanceKm?: number | null;
+  vendor?: { id: string; slug: string; shopName: string; phone: string | null } | null;
+  branch?: { id: string; name: string } | null;
   itemsMrp: number;
   itemsTotal: number;
   couponCode: string | null;

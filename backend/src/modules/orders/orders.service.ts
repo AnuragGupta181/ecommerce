@@ -240,11 +240,15 @@ export async function getOrder(userId: string, orderId: string) {
         items: { include: { product: { select: { slug: true } } } },
         history: { orderBy: { createdAt: "asc" }, select: { status: true, note: true, createdAt: true } },
         rider: { select: { name: true, phone: true, whatsapp: true, vehicleType: true, vehicleNumber: true } },
+        vendor: { select: { id: true, slug: true, shopName: true, phone: true } },
+        branch: { select: { id: true, name: true } },
       },
     }),
     getSettings(),
   ]);
   if (!order) throw AppError.notFound("Order");
+  // The shop's commission, earnings, cost prices and the admin's note are not the customer's business.
+  const { adminNote: _adminNote, commissionBps: _bps, commissionAmount: _commission, vendorEarning: _earning, payoutId: _payout, ...visible } = order;
 
   const reviewed = await prisma.review.findMany({
     where: { userId, productId: { in: order.items.map((item) => item.productId) } },
@@ -254,8 +258,8 @@ export async function getOrder(userId: string, orderId: string) {
   const reachedAt = new Map(order.history.map((entry) => [entry.status, entry.createdAt]));
 
   return {
-    ...order,
-    items: order.items.map(({ product, ...item }) => ({
+    ...visible,
+    items: order.items.map(({ product, costPrice: _cost, ...item }) => ({
       ...item,
       productSlug: product.slug,
       canReview: order.status === "DELIVERED" && !reviewedIds.has(item.productId),

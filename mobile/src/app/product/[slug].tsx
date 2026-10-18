@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Heart, Share2, ShoppingCart, Tag } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gallery } from "@/components/product/gallery";
+import { ShopOffers } from "@/components/shop/shop-offers";
 import { ProductRail } from "@/components/product/product-rail";
 import { RatingSummary, ReviewRow } from "@/components/product/review-list";
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,10 @@ import { Sheet } from "@/components/ui/sheet";
 import { StackHeader } from "@/components/ui/stack-header";
 import { ErrorState, Loading } from "@/components/ui/state-view";
 import { Text } from "@/components/ui/text";
-import { useAddToCart } from "@/hooks/use-cart";
+import { useAddToCartResolvingShop } from "@/hooks/use-cart";
 import { useProduct, useProductReviews, useSimilarProducts } from "@/hooks/use-catalog";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { useToggleWishlist } from "@/hooks/use-wishlist";
-import { errorMessage } from "@/lib/api";
 import { deviceStore } from "@/lib/device-store";
 import { openListing } from "@/lib/navigation";
 import { colors, spacing } from "@/lib/theme";
@@ -32,8 +32,9 @@ export default function ProductDetailScreen() {
   const insets = useSafeAreaInsets();
   const { guard } = useRequireAuth();
   const toggleWishlist = useToggleWishlist();
-  const addToCart = useAddToCart();
+  const addToCart = useAddToCartResolvingShop();
   const [variantId, setVariantId] = useState<string>();
+  const [listingId, setListingId] = useState<string>();
   const [added, setAdded] = useState(false);
   const [reviewsOpen, setReviewsOpen] = useState(false);
 
@@ -61,22 +62,19 @@ export default function ProductDetailScreen() {
 
   const p = product.data;
   const variant = p.variants.find((v) => v.id === variantId) ?? p.variants.find((v) => v.inStock) ?? p.variants[0];
-  const discount = variant && variant.mrp > variant.price ? Math.round(((variant.mrp - variant.price) / variant.mrp) * 100) : 0;
-  const lowStock = variant?.stock !== null && variant?.stock !== undefined && variant.stock > 0 && variant.stock <= 5;
+  // The server ranks offers best-first; the shopper may pick another shop that can deliver.
+  const offers = variant?.offers ?? [];
+  const offer = offers.find((o) => o.listingId === listingId && o.label === "AVAILABLE") ?? offers.find((o) => o.label === "AVAILABLE") ?? offers[0];
+  const shown = offer ?? variant;
+  const buyable = offer ? offer.label === "AVAILABLE" : !!variant?.inStock;
+  const discount = offer ? offer.discountPercent : variant && variant.mrp > variant.price ? Math.round(((variant.mrp - variant.price) / variant.mrp) * 100) : 0;
+  const stockLeft = offer ? offer.stockLeft : variant?.stock;
+  const lowStock = stockLeft !== null && stockLeft !== undefined && stockLeft > 0 && stockLeft <= 5;
 
-  const add = (then?: () => void) =>
+  const add = () =>
     guard(() => {
       if (!variant) return;
-      addToCart.mutate(
-        { variantId: variant.id, quantity: 1 },
-        {
-          onSuccess: () => {
-            setAdded(true);
-            then?.();
-          },
-          onError: (error) => Alert.alert("Couldn't add to cart", errorMessage(error)),
-        },
-      );
+      addToCart.add({ variantId: variant.id, quantity: 1, branchId: offer?.shop.branchId }, { onAdded: () => setAdded(true) });
     }, "Login to add items to your cart");
 
   return (
@@ -113,14 +111,14 @@ export default function ProductDetailScreen() {
           ) : null}
           <Text variant="h2">{p.name}</Text>
           <RatingChip rating={p.rating.average} count={p.rating.count} />
-          {variant ? <Price price={variant.price} mrp={variant.mrp} discountPercent={discount} large /> : null}
-          {!variant?.inStock ? (
+          {shown ? <Price price={shown.price} mrp={shown.mrp} discountPercent={discount} large /> : null}
+          {!buyable ? (
             <Text color={colors.danger} style={styles.bold}>
-              Out of stock
+              {offer?.label === "CLOSED" ? "Shop closed right now" : offer?.label === "TOO_FAR" ? "No shop delivers here yet" : "Out of stock"}
             </Text>
           ) : lowStock ? (
             <Text color={colors.warning} style={styles.bold}>
-              Only {variant.stock} left
+              Only {stockLeft} left
             </Text>
           ) : null}
         </View>
@@ -135,6 +133,8 @@ export default function ProductDetailScreen() {
             </View>
           </View>
         ) : null}
+
+        {variant?.offers ? <ShopOffers offers={variant.offers} selectedListingId={offer?.listingId} onSelect={(o) => setListingId(o.listingId)} /> : null}
 
         {p.offers.length ? (
           <Card title="Available offers" style={styles.card}>
@@ -207,15 +207,20 @@ export default function ProductDetailScreen() {
           title={added ? "Go to cart" : "Add to cart"}
           variant="outline"
           style={styles.flex}
-          disabled={!variant?.inStock}
+          disabled={!buyable}
           loading={addToCart.isPending}
           onPress={() => (added ? router.push("/cart") : add())}
         />
         <Button
           title="Buy now"
           style={styles.flex}
-          disabled={!variant?.inStock}
-          onPress={() => guard(() => variant && router.push({ pathname: "/checkout", params: { variantId: variant.id, quantity: "1" } }), "Login to buy this item")}
+          disabled={!buyable}
+          onPress={() =>
+            guard(
+              () => variant && router.push({ pathname: "/checkout", params: { variantId: variant.id, quantity: "1", branchId: offer?.shop.branchId ?? "" } }),
+              "Login to buy this item",
+            )
+          }
         />
       </View>
 

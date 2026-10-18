@@ -27,6 +27,7 @@ export function parseListing(params: ListingParams): ListingQuery {
     inStock: params.inStock === "true" || undefined,
     sort: params.sort || undefined,
     ids: params.ids || undefined,
+    vendor: params.vendor || undefined,
   };
 }
 
