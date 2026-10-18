@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createAdmin } from "@/app/(dashboard)/admins/actions";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Modal } from "@/components/ui/modal";
 import { useAction } from "@/lib/use-action";
 
@@ -63,7 +64,7 @@ export function AddAdminButton() {
             <Input {...text("phone")} inputMode="tel" />
           </Field>
           <Field label="Password" htmlFor="admin-password" error={fieldErrors.password} hint="At least 8 characters">
-            <Input {...text("password")} type="password" autoComplete="new-password" />
+            <PasswordInput {...text("password")} autoComplete="new-password" />
           </Field>
         </div>
       </Modal>

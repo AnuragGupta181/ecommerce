@@ -6,6 +6,7 @@ import { addStaff, saveBranch, saveShopProfile, setBranchOnline } from "@/app/ve
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import { ImagePicker } from "@/components/ui/image-picker";
 import { Modal } from "@/components/ui/modal";
 import { Switch } from "@/components/ui/switch";
@@ -339,7 +340,7 @@ export function AddStaffButton() {
             <Input {...text("phone")} inputMode="tel" />
           </Field>
           <Field label="Password" htmlFor="staff-password" error={fieldErrors.password} hint="At least 8 characters. Share it with them privately.">
-            <Input {...text("password")} type="password" autoComplete="new-password" />
+            <PasswordInput {...text("password")} autoComplete="new-password" />
           </Field>
         </div>
       </Modal>

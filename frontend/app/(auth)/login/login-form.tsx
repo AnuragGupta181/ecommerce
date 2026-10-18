@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import { login, type LoginState } from "./actions";
 
 export function LoginForm() {
@@ -23,7 +24,7 @@ export function LoginForm() {
         <Input id="identifier" name="identifier" autoComplete="username" defaultValue={state.identifier} required autoFocus />
       </Field>
       <Field label="Password" htmlFor="password">
-        <Input id="password" name="password" type="password" autoComplete="current-password" required />
+        <PasswordInput id="password" name="password" autoComplete="current-password" required />
       </Field>
       <Button type="submit" pending={pending} className="mt-2 w-full">
         Sign in

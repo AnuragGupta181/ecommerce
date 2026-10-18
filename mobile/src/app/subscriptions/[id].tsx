@@ -39,7 +39,7 @@ export default function SubscriptionScreen() {
     return (
       <Screen>
         <StackHeader title="Subscription" />
-        <Loading />
+        <Loading layout="detail" />
       </Screen>
     );
   }

@@ -28,7 +28,7 @@ export default function TicketScreen() {
     return (
       <Screen>
         <StackHeader title="Ticket" />
-        <Loading />
+        <Loading layout="detail" />
       </Screen>
     );
   }

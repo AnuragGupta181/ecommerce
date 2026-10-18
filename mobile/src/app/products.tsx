@@ -49,7 +49,7 @@ export default function ProductListingScreen() {
         </Pressable>
       </View>
       {products.isPending ? (
-        <Loading />
+        <Loading layout="grid" />
       ) : products.isError ? (
         <ErrorState error={products.error} onRetry={() => products.refetch()} />
       ) : (

@@ -68,7 +68,7 @@ export default function PlanScreen() {
     return (
       <Screen>
         <StackHeader title="" />
-        <Loading />
+        <Loading layout="detail" />
       </Screen>
     );
   }

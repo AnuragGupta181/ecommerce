@@ -36,7 +36,7 @@ export default function ChatScreen() {
       <StackHeader title={shopName} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {thread.isPending ? (
-          <Loading />
+          <Loading layout="chat" />
         ) : thread.error && !thread.messages.length ? (
           <ErrorState error={thread.error} />
         ) : (

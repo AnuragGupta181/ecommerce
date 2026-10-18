@@ -25,6 +25,8 @@ export function createApp(): Express {
       // Native mobile requests carry no Origin header; browsers are restricted to the allow-list.
       origin: (origin, callback) => callback(null, !origin || env.CORS_ORIGINS.includes(origin)),
       credentials: true,
+      // Bearer and X-Location headers force a preflight on every call; let browsers reuse it (Chrome caps at 2 h).
+      maxAge: 7200,
     }),
   );
   app.use(compression());

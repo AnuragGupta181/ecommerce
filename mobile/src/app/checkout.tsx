@@ -70,7 +70,7 @@ export default function CheckoutScreen() {
     <Screen>
       <StackHeader title="Checkout" />
       {quote.isPending ? (
-        <Loading />
+        <Loading layout="detail" />
       ) : quote.isError ? (
         <ErrorState error={quote.error} onRetry={() => quote.refetch()} />
       ) : (
@@ -81,7 +81,7 @@ export default function CheckoutScreen() {
               right={address ? <Button title="Add new" variant="ghost" small onPress={() => router.push("/account/address-form")} /> : null}
             >
               {addresses.isPending ? (
-                <Loading />
+                <Loading layout="detail" />
               ) : !addresses.data?.length ? (
                 <Button title="Add a delivery address" variant="outline" icon={<Plus size={18} color={colors.ink900} />} onPress={() => router.push("/account/address-form")} />
               ) : (

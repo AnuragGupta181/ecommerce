@@ -44,7 +44,7 @@ export default function HomeScreen() {
         <SearchBar />
       </View>
       {home.isPending ? (
-        <Loading />
+        <Loading layout="home" />
       ) : home.isError ? (
         <ErrorState error={home.error} onRetry={() => home.refetch()} />
       ) : (

@@ -33,7 +33,7 @@ export default function OrderDetailScreen() {
     return (
       <Screen>
         <StackHeader title="Order details" />
-        {order.isPending ? <Loading /> : <ErrorState error={order.error} onRetry={() => order.refetch()} />}
+        {order.isPending ? <Loading layout="detail" /> : <ErrorState error={order.error} onRetry={() => order.refetch()} />}
       </Screen>
     );
   }

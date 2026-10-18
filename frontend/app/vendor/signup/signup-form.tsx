@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import { BranchFields, branchDraft, branchInput } from "@/components/vendor/shop-forms";
 import { useAction } from "@/lib/use-action";
 import { signupVendor } from "./actions";
@@ -86,7 +87,7 @@ export function SignupForm() {
             <Input {...ownerText("email")} type="email" autoComplete="email" />
           </Field>
           <Field label="Password" htmlFor="owner-password" error={error("owner.password")} hint="At least 8 characters">
-            <Input {...ownerText("password")} type="password" autoComplete="new-password" />
+            <PasswordInput {...ownerText("password")} autoComplete="new-password" />
           </Field>
         </div>
       </Card>

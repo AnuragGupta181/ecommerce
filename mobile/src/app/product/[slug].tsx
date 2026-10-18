@@ -47,7 +47,7 @@ export default function ProductDetailScreen() {
     return (
       <Screen>
         <StackHeader title="" />
-        <Loading />
+        <Loading layout="detail" />
       </Screen>
     );
   }

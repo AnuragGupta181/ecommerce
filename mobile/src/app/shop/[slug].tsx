@@ -32,7 +32,7 @@ export default function ShopScreen() {
     return (
       <Screen>
         <StackHeader title="" />
-        <Loading />
+        <Loading layout="grid" />
       </Screen>
     );
   }
@@ -101,7 +101,7 @@ export default function ShopScreen() {
         {items.length ? (
           <ProductRail title="From this shop" products={items.slice(0, 12)} onSeeAll={() => openListing({ vendor: slug }, s.shopName)} />
         ) : products.isPending ? (
-          <Loading />
+          <Loading layout="grid" />
         ) : null}
       </ScrollView>
     </Screen>

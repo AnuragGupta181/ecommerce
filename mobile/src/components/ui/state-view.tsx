@@ -1,16 +1,14 @@
 import type { LucideIcon } from "lucide-react-native";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { errorMessage } from "@/lib/api";
 import { colors, spacing } from "@/lib/theme";
 import { Button } from "./button";
+import { Skeleton, type SkeletonLayout } from "./skeleton";
 import { Text } from "./text";
 
-export function Loading() {
-  return (
-    <View style={styles.center}>
-      <ActivityIndicator color={colors.brand600} size="large" />
-    </View>
-  );
+/** First load of a screen: a skeleton shaped like the page, not a spinner. */
+export function Loading({ layout = "list" }: { layout?: SkeletonLayout }) {
+  return <Skeleton layout={layout} />;
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {

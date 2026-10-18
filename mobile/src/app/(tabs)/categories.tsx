@@ -1,3 +1,5 @@
+import { Image } from "expo-image";
+import { LayoutGrid } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { CategoryBubble } from "@/components/home/category-strip";
@@ -34,7 +36,10 @@ export default function CategoriesScreen() {
               const active = category.id === selected?.id;
               return (
                 <Pressable key={category.id} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => setSelectedId(category.id)} style={[styles.railItem, active && styles.railActive]}>
-                  <Text variant="small" color={active ? colors.ink900 : colors.ink700} style={active ? styles.bold : undefined}>
+                  <View style={[styles.railIcon, active && styles.railIconActive]}>
+                    {category.imageUrl ? <Image source={category.imageUrl} style={styles.railImage} contentFit="cover" /> : <LayoutGrid size={18} color={colors.ink700} />}
+                  </View>
+                  <Text variant="small" numberOfLines={2} color={active ? colors.ink900 : colors.ink700} style={[styles.railLabel, active && styles.bold]}>
                     {category.name}
                   </Text>
                 </Pressable>
@@ -61,9 +66,14 @@ export default function CategoriesScreen() {
 const styles = StyleSheet.create({
   header: { padding: spacing.lg, gap: spacing.md },
   panes: { flex: 1, flexDirection: "row", borderTopWidth: 1, borderTopColor: colors.line },
-  rail: { width: 104, flexGrow: 0, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.line },
-  railItem: { paddingVertical: spacing.lg, paddingHorizontal: spacing.md, borderLeftWidth: 3, borderLeftColor: "transparent" },
+  // flexShrink: 0 or web squeezes the rail and breaks words mid-letter.
+  rail: { width: 92, flexGrow: 0, flexShrink: 0, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.line },
+  railItem: { alignItems: "center", gap: 6, paddingVertical: spacing.md, paddingHorizontal: spacing.xs, borderLeftWidth: 3, borderLeftColor: "transparent" },
   railActive: { backgroundColor: colors.brand50, borderLeftColor: colors.brand500 },
+  railIcon: { width: 44, height: 44, borderRadius: 22, overflow: "hidden", backgroundColor: colors.canvas, alignItems: "center", justifyContent: "center" },
+  railIconActive: { backgroundColor: colors.brand100 },
+  railImage: { width: "100%", height: "100%" },
+  railLabel: { textAlign: "center", fontSize: 12, lineHeight: 15 },
   bold: { fontFamily: "PlusJakartaSans_700Bold" },
   detail: { padding: spacing.lg, gap: spacing.lg },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },

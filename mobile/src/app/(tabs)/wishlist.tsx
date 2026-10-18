@@ -27,7 +27,7 @@ export default function WishlistScreen() {
       {!isLoggedIn ? (
         <EmptyState icon={Heart} title="Save what you love" description="Login to keep a wishlist across devices." actionLabel="Login" onAction={() => guard(() => undefined, "Login to see your wishlist")} />
       ) : wishlist.isPending ? (
-        <Loading />
+        <Loading layout="grid" />
       ) : wishlist.isError ? (
         <ErrorState error={wishlist.error} onRetry={() => wishlist.refetch()} />
       ) : (
